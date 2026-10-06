@@ -94,7 +94,11 @@ export function Sheet({ open, onClose, title, description, children, footer, siz
                 <X className="size-5" />
               </button>
             </header>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5" onPointerDownCapture={(e) => e.stopPropagation()}>
+            <div
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5"
+              style={{ paddingBottom: footer ? 20 : "max(24px, calc(var(--safe-bottom) + 12px))" }}
+              onPointerDownCapture={(e) => e.stopPropagation()}
+            >
               {children}
             </div>
             {footer && (

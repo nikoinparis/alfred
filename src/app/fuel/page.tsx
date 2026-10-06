@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { format } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus, Sparkles, Target, Trash2 } from "lucide-react";
+import { Camera, ChevronLeft, ChevronRight, Plus, Sparkles, Target, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useApp, useSettings } from "@/components/providers/app-provider";
 import { AddFoodSheet, MacroLine } from "@/components/fuel/add-food-sheet";
 import { BodyweightCard } from "@/components/fuel/bodyweight-card";
 import { MacroRings } from "@/components/fuel/macro-rings";
+import { PhotoMacrosSheet } from "@/components/fuel/photo-macros";
 import { WeeklySummary } from "@/components/fuel/weekly-summary";
 import { Page, SectionTitle } from "@/components/shell/page";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -29,6 +30,7 @@ export default function FuelPage() {
   const bw = useLatestBodyweight();
   const [offset, setOffset] = useState(0);
   const [adding, setAdding] = useState(false);
+  const [photo, setPhoto] = useState(false);
   const [editing, setEditing] = useState<FoodLog | null>(null);
   const date = addDays(t, offset);
 
@@ -88,9 +90,12 @@ export default function FuelPage() {
         <MacroRings totals={totals} targets={targets} />
       </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-2">
+      <div className="mt-3 grid grid-cols-2 gap-2">
         <Button variant="primary" size="lg" onClick={() => setAdding(true)}>
           <Plus className="size-5" /> Add food
+        </Button>
+        <Button size="lg" onClick={() => setPhoto(true)}>
+          <Camera className="size-5" /> Snap a meal
         </Button>
       </div>
 
@@ -174,6 +179,7 @@ export default function FuelPage() {
       {weekLogs && <WeeklySummary logs={weekLogs} endDate={date} targets={targets} />}
 
       <AddFoodSheet open={adding} onClose={() => setAdding(false)} date={date} />
+      <PhotoMacrosSheet open={photo} onClose={() => setPhoto(false)} date={date} />
       <EditLogSheet log={editing} onClose={() => setEditing(null)} />
     </Page>
   );

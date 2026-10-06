@@ -7,7 +7,7 @@
 | 2 | Weekly planner with smart day-type suggestions, weekly review, streaks | ✅ |
 | 3 | Body heatmap (2D + 3D) | ✅ |
 | 4 | Calorie & macro tracking, quick-add, saved meals, bodyweight trend | ✅ |
-| 5 | Photo-to-macros, goal engine, weekly check-in | ⏳ |
+| 5 | Photo-to-macros, goal engine, weekly check-in | ✅ |
 
 ## 3D body model: options and what shipped
 

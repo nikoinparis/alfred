@@ -143,16 +143,16 @@ export function TodayStart({ date, planned, suggestion, templates, exercises, re
           <div className="flex gap-2">
             <Button
               size="lg"
-              className="flex-1"
+              className="min-w-0 flex-1 px-3"
               disabled={restLogged}
               onClick={async () => {
                 await logRestDay(db, date);
                 toast({ message: "Rest day logged. Recover well." });
               }}
             >
-              <BedDouble className="size-5" /> {restLogged ? "Rest day logged" : "Log rest day"}
+              <BedDouble className="size-5" /> {restLogged ? "Rest logged" : "Log rest"}
             </Button>
-            <Button size="lg" variant="primary" className="flex-1" onClick={start} disabled={starting}>
+            <Button size="lg" variant="primary" className="min-w-0 flex-1 px-3" onClick={start} disabled={starting}>
               <Play className="size-5" /> Start recovery
             </Button>
           </div>

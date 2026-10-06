@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { Page } from "@/components/shell/page";
 import { useApp, useSettings } from "@/components/providers/app-provider";
 import { SessionView } from "@/components/workout/session-view";
+import { TodayAside } from "@/components/workout/today-aside";
 import { TodayStart } from "@/components/workout/today-start";
 import { useExercises, useTemplates, useToday } from "@/lib/db/hooks";
 import { addDays, parseISODate } from "@/lib/domain/dates";
@@ -41,21 +42,26 @@ export default function TodayPage() {
   })[0];
 
   return (
-    <Page title="Today" subtitle={subtitle}>
-      {session ? (
-        <SessionView key={session.id} session={session} exercises={exercises} templates={templates} />
-      ) : (
-        <TodayStart
-          key={`${t}-${planned?.dayType ?? suggestion?.dayType}`}
-          date={t}
-          planned={planned}
-          suggestion={suggestion}
-          templates={templates}
-          exercises={exercises}
-          restLogged={todayLog?.dayType === "rest" && todayLog.status === "done"}
-        />
-      )}
-      {!session && <div className="h-24 md:hidden" aria-hidden />}
+    <Page title="Today" subtitle={subtitle} wide>
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0">
+          {session ? (
+            <SessionView key={session.id} session={session} exercises={exercises} templates={templates} />
+          ) : (
+            <TodayStart
+              key={`${t}-${planned?.dayType ?? suggestion?.dayType}`}
+              date={t}
+              planned={planned}
+              suggestion={suggestion}
+              templates={templates}
+              exercises={exercises}
+              restLogged={todayLog?.dayType === "rest" && todayLog.status === "done"}
+            />
+          )}
+          {!session && <div className="h-24 md:hidden" aria-hidden />}
+        </div>
+        <TodayAside date={t} />
+      </div>
     </Page>
   );
 }

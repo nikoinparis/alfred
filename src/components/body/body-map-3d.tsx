@@ -27,8 +27,12 @@ interface Part {
 const BASE: Part[] = [
   { shape: "sphere", position: [0, 3.25, 0], scale: [0.25, 0.3, 0.27] },
   { shape: "capsule", position: [0, 2.93, -0.02], scale: [0.12, 1, 0.12], length: 0.14 },
-  { shape: "capsule", position: [0, 2.25, 0], scale: [0.44, 1, 0.27], length: 0.62 },
-  { shape: "sphere", position: [0, 1.6, 0], scale: [0.38, 0.26, 0.26] },
+  // V-taper: broad ribcage, narrower waist, pelvis.
+  { shape: "sphere", position: [0, 2.43, 0], scale: [0.5, 0.42, 0.27] },
+  { shape: "sphere", position: [0, 1.98, 0], scale: [0.36, 0.38, 0.23] },
+  { shape: "sphere", position: [0, 1.6, 0], scale: [0.37, 0.25, 0.25] },
+  { shape: "sphere", position: [0.62, 2.62, 0], scale: [0.14, 0.14, 0.14], mirror: true },
+  { shape: "capsule", position: [0, 2.78, -0.02], scale: [0.2, 1, 0.16], length: 0.12, rotation: [0, 0, Math.PI / 2] },
   { shape: "capsule", position: [0.71, 2.33, 0], scale: [0.11, 1, 0.11], length: 0.46, rotation: [0, 0, 0.1], mirror: true },
   { shape: "capsule", position: [0.79, 1.74, 0.02], scale: [0.09, 1, 0.09], length: 0.46, rotation: [0, 0, 0.04], mirror: true },
   { shape: "sphere", position: [0.82, 1.35, 0.03], scale: [0.08, 0.11, 0.06], mirror: true },
@@ -57,7 +61,7 @@ const MUSCLE_PARTS: Record<Muscle, Part[]> = {
     { shape: "sphere", position: [0.075, 2.03, 0.26], scale: [0.07, 0.075, 0.035], mirror: true },
     { shape: "sphere", position: [0.075, 1.85, 0.25], scale: [0.07, 0.085, 0.035], mirror: true },
   ],
-  obliques: [{ shape: "sphere", position: [0.3, 1.97, 0.12], scale: [0.08, 0.22, 0.11], rotation: [0, 0.4, 0], mirror: true }],
+  obliques: [{ shape: "sphere", position: [0.25, 1.97, 0.1], scale: [0.07, 0.2, 0.1], rotation: [0, 0.5, 0], mirror: true }],
   glutes: [{ shape: "sphere", position: [0.16, 1.52, -0.17], scale: [0.17, 0.17, 0.13], mirror: true }],
   quads: [{ shape: "sphere", position: [0.24, 1.16, 0.08], scale: [0.15, 0.33, 0.1], rotation: [0, 0, 0.04], mirror: true }],
   adductors: [{ shape: "sphere", position: [0.1, 1.24, 0.02], scale: [0.06, 0.24, 0.08], mirror: true }],
@@ -176,7 +180,7 @@ export default function BodyMap3D({
         <group position={[0, -0.05, 0]}>
           {base.map((p, i) => (
             <Shape key={i} part={p}>
-              <meshStandardMaterial color="#323a46" roughness={0.55} metalness={0.12} />
+              <meshStandardMaterial color="#3a4351" roughness={0.55} metalness={0.12} />
             </Shape>
           ))}
           {(Object.keys(MUSCLE_PARTS) as Muscle[]).map((m) => (

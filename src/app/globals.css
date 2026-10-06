@@ -1,26 +1,152 @@
 @import "tailwindcss";
 
+/*
+ * Alfred design tokens.
+ * Gotham at night: cool blue-black graphite, gunmetal surfaces, one muted signal-amber accent.
+ * Heat colours for training volume are desaturated so they sit inside the palette.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --night: #090b0f;
+  --kevlar: #10141a;
+  --gunmetal: #171c24;
+  --gunmetal-2: #1e2530;
+  --steel: #283140;
+  --steel-2: #374254;
+  --fog: #8e98a7;
+  --fog-2: #b4bcc8;
+  --bone: #e9ecf0;
+  --signal: #e2b04a;
+  --signal-ink: #1a1203;
+  --signal-soft: rgb(226 176 74 / 0.14);
+  --crimson: #c0473f;
+  --ochre: #cf9a38;
+  --verdigris: #3fa487;
+  --ice: #7fa6c9;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --tabbar-h: 64px;
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-night: var(--night);
+  --color-kevlar: var(--kevlar);
+  --color-gunmetal: var(--gunmetal);
+  --color-gunmetal-2: var(--gunmetal-2);
+  --color-steel: var(--steel);
+  --color-steel-2: var(--steel-2);
+  --color-fog: var(--fog);
+  --color-fog-2: var(--fog-2);
+  --color-bone: var(--bone);
+  --color-signal: var(--signal);
+  --color-signal-ink: var(--signal-ink);
+  --color-signal-soft: var(--signal-soft);
+  --color-crimson: var(--crimson);
+  --color-ochre: var(--ochre);
+  --color-verdigris: var(--verdigris);
+  --color-ice: var(--ice);
+
+  --font-sans: var(--font-plex), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-saira), var(--font-plex), ui-sans-serif, sans-serif;
+
+  --radius-sheet: 18px;
+  --radius-panel: 14px;
+  --radius-row: 10px;
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--night);
+  -webkit-tap-highlight-color: transparent;
+  text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgb(127 166 201 / 0.07), transparent 60%),
+    var(--night);
+  color: var(--bone);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss02", "tnum";
+  min-height: 100dvh;
+  overscroll-behavior-y: none;
+}
+
+/* Film grain: barely there, kills banding on OLED gradients. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+::selection {
+  background: var(--signal);
+  color: var(--signal-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* Numbers that matter: condensed, tabular. */
+.readout {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 0.9;
+}
+
+/* Hairline panel used for grouped content. */
+.panel {
+  background: linear-gradient(180deg, var(--gunmetal), var(--kevlar));
+  border: 1px solid var(--steel);
+  border-radius: var(--radius-panel);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
+}
+
+.divide-steel > * + * {
+  border-top: 1px solid var(--steel);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+/* Numeric inputs without spinners */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

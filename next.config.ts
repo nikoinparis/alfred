@@ -3,8 +3,8 @@ import type { NextConfig } from "next";
 const buildId = (process.env.VERCEL_GIT_COMMIT_SHA ?? String(Date.now())).slice(0, 12);
 
 const nextConfig: NextConfig = {
-  cacheComponents: true,
-  partialPrefetching: true,
+  // All user data lives on-device and pages render client-side, so Cache Components
+  // and partial prefetching add validation noise without benefit here.
   env: { NEXT_PUBLIC_BUILD_ID: buildId },
   turbopack: {
     rules: {

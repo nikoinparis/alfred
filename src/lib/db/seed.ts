@@ -169,7 +169,7 @@ export async function seedDemo(db: AlfredDB, todayISO: string) {
       items.forEach(([fid, servings], k) => {
         const f = foods[fid];
         if (!f) return;
-        const s = servings * (0.9 + rand() * 0.25);
+        const s = servings * (1.1 + rand() * 0.3);
         foodLogs.push({
           id: `demo-fl-${date}-${mi}-${k}`,
           date,

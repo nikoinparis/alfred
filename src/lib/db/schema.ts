@@ -96,6 +96,8 @@ export class AlfredDB extends Dexie {
       foodLogs: "id, date, createdAt",
       bodyweights: "date",
     });
+    // v2: booleans can't be IndexedDB keys, so the favourite index never worked.
+    this.version(2).stores({ foods: "id, name, lastUsed" });
   }
 }
 

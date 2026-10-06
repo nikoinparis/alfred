@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Settings } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
@@ -19,6 +20,7 @@ interface PageProps {
 
 export function Page({ title, subtitle, actions, children, className, wide }: PageProps) {
   const { mode } = useApp();
+  const inSettings = usePathname().startsWith("/settings");
   return (
     <div className="relative z-[1] min-w-0 flex-1">
       <header
@@ -34,21 +36,20 @@ export function Page({ title, subtitle, actions, children, className, wide }: Pa
             {subtitle && <p className="mt-1.5 truncate text-sm text-fog">{subtitle}</p>}
           </div>
           {mode === "demo" && (
-            <Link
-              href="/about"
-              className="mb-0.5 rounded-full border border-ice/30 bg-ice/10 px-2.5 py-1 text-xs font-medium text-ice"
-            >
+            <Link href="/about" className="mb-0.5 rounded-full border border-ice/30 bg-ice/10 px-2.5 py-1 text-xs font-medium text-ice">
               Demo
             </Link>
           )}
           {actions}
-          <Link
-            href="/settings"
-            className="-mr-2 grid size-10 place-items-center rounded-full text-fog hover:text-bone md:hidden"
-            aria-label="Settings"
-          >
-            <Settings className="size-5" />
-          </Link>
+          {!inSettings && (
+            <Link
+              href="/settings"
+              className="-mr-2 grid size-10 place-items-center rounded-full text-fog hover:text-bone md:hidden"
+              aria-label="Settings"
+            >
+              <Settings className="size-5" />
+            </Link>
+          )}
         </div>
       </header>
       <main

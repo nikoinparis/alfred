@@ -4,6 +4,7 @@ import { AppProvider } from "@/components/providers/app-provider";
 import { ServiceWorker } from "@/components/providers/service-worker";
 import { SideRail, TabBar } from "@/components/shell/nav";
 import { ToastProvider } from "@/components/ui/toast";
+import { RestTimerProvider } from "@/components/workout/rest-timer";
 import "./globals.css";
 
 const plex = IBM_Plex_Sans({
@@ -39,11 +40,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body>
         <ToastProvider>
           <AppProvider>
-            <div className="flex min-h-dvh">
-              <SideRail />
-              {children}
-            </div>
-            <TabBar />
+            <RestTimerProvider>
+              <div className="flex min-h-dvh">
+                <SideRail />
+                {children}
+              </div>
+              <TabBar />
+            </RestTimerProvider>
           </AppProvider>
         </ToastProvider>
         <ServiceWorker />

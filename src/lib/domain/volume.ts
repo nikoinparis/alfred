@@ -30,20 +30,14 @@ export interface MuscleVolume {
 }
 
 export function emptyVolume(): Record<Muscle, MuscleVolume> {
-  return Object.fromEntries(MUSCLES.map((m) => [m, { muscle: m, sets: 0, contributions: [] }])) as unknown as Record<
-    Muscle,
-    MuscleVolume
-  >;
+  return Object.fromEntries(MUSCLES.map((m) => [m, { muscle: m, sets: 0, contributions: [] }])) as unknown as Record<Muscle, MuscleVolume>;
 }
 
 /**
  * Weekly hard sets per muscle. Primary muscles get 1 per hard set, secondary 0.5.
  * Contributions are merged per exercise so the UI can show "what hit this muscle".
  */
-export function weeklyMuscleVolume(
-  sessions: Session[],
-  exercises: Record<string, Exercise | undefined>,
-): Record<Muscle, MuscleVolume> {
+export function weeklyMuscleVolume(sessions: Session[], exercises: Record<string, Exercise | undefined>): Record<Muscle, MuscleVolume> {
   const out = emptyVolume();
   for (const session of sessions) {
     for (const entry of session.entries) {

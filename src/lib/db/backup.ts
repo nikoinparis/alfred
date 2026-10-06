@@ -39,14 +39,18 @@ export function parseBackup(text: string): Backup {
 
 /** Replaces every table with the backup's contents. */
 export async function importBackup(db: AlfredDB, backup: Backup) {
-  await db.transaction("rw", TABLES.map((t) => db.table(t)), async () => {
-    for (const t of TABLES) {
-      const rows = backup.data[t];
-      if (!rows) continue;
-      await db.table(t).clear();
-      await db.table(t).bulkPut(rows);
-    }
-  });
+  await db.transaction(
+    "rw",
+    TABLES.map((t) => db.table(t)),
+    async () => {
+      for (const t of TABLES) {
+        const rows = backup.data[t];
+        if (!rows) continue;
+        await db.table(t).clear();
+        await db.table(t).bulkPut(rows);
+      }
+    },
+  );
 }
 
 function csvCell(v: unknown): string {

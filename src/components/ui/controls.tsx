@@ -14,12 +14,26 @@ interface NumberFieldProps {
   suffix?: string;
   /** Large readout style used in set logging. */
   big?: boolean;
+  /** Narrow ± buttons for tight rows. */
+  dense?: boolean;
   placeholder?: string;
   className?: string;
 }
 
 /** Number input flanked by big −/+ buttons. Typing works too (decimal keypad on iOS). */
-export function NumberField({ value, onChange, step = 1, min = 0, max = 9999, label, suffix, big, placeholder = "–", className }: NumberFieldProps) {
+export function NumberField({
+  value,
+  onChange,
+  step = 1,
+  min = 0,
+  max = 9999,
+  label,
+  suffix,
+  big,
+  dense,
+  placeholder = "–",
+  className,
+}: NumberFieldProps) {
   const [draft, setDraft] = useState(value === null ? "" : String(value));
   const [synced, setSynced] = useState(value);
   if (synced !== value) {
@@ -45,7 +59,7 @@ export function NumberField({ value, onChange, step = 1, min = 0, max = 9999, la
       <button
         type="button"
         onClick={() => nudge(-1)}
-        className={cn("grid shrink-0 place-items-center text-fog active:bg-gunmetal-2", big ? "w-12" : "w-10")}
+        className={cn("grid shrink-0 place-items-center text-fog active:bg-gunmetal-2", dense ? "w-8" : big ? "w-12" : "w-10")}
         aria-label={`Decrease ${label}`}
       >
         <Minus className="size-4" />
@@ -70,7 +84,7 @@ export function NumberField({ value, onChange, step = 1, min = 0, max = 9999, la
       <button
         type="button"
         onClick={() => nudge(1)}
-        className={cn("grid shrink-0 place-items-center text-fog active:bg-gunmetal-2", big ? "w-12" : "w-10")}
+        className={cn("grid shrink-0 place-items-center text-fog active:bg-gunmetal-2", dense ? "w-8" : big ? "w-12" : "w-10")}
         aria-label={`Increase ${label}`}
       >
         <Plus className="size-4" />
@@ -145,7 +159,10 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className={cn("relative h-7 w-12 shrink-0 rounded-full border transition-colors", checked ? "border-signal bg-signal/90" : "border-steel-2 bg-gunmetal-2")}
+      className={cn(
+        "relative h-7 w-12 shrink-0 rounded-full border transition-colors",
+        checked ? "border-signal bg-signal/90" : "border-steel-2 bg-gunmetal-2",
+      )}
     >
       <span
         className={cn(

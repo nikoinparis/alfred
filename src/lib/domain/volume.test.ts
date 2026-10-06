@@ -75,7 +75,12 @@ describe("weeklyMuscleVolume", () => {
 
   it("ignores conditioning work and unknown exercises", () => {
     const v = weeklyMuscleVolume(
-      [session([{ exerciseId: "incline-walk", sets: [set()] }, { exerciseId: "nope", sets: [set()] }])],
+      [
+        session([
+          { exerciseId: "incline-walk", sets: [set()] },
+          { exerciseId: "nope", sets: [set()] },
+        ]),
+      ],
       EXERCISE_BY_ID,
     );
     expect(Object.values(v).every((m) => m.sets === 0)).toBe(true);

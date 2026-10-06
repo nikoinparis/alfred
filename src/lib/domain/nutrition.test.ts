@@ -71,7 +71,11 @@ describe("weightTrend / weeklyRate", () => {
 
 describe("weeklyCheckIn", () => {
   const asOf = "2026-09-14";
-  const losing = (rate: number) => series("2026-09-01", Array.from({ length: 14 }, (_, i) => 80 + (rate / 7) * i));
+  const losing = (rate: number) =>
+    series(
+      "2026-09-01",
+      Array.from({ length: 14 }, (_, i) => 80 + (rate / 7) * i),
+    );
   const base = { targetRate: -0.5, targetKcal: 2200, intakeDays: [2200, 2180, 2210, 2200, 2190], asOf, bodyweightKg: 80 };
 
   it("says on track when the trend matches", () => {

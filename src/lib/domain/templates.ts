@@ -37,7 +37,15 @@ export function seedTemplates(): DayTemplate[] {
       name: "Pull",
       slots: [
         slot("cable-row", 3, 8, 8, lb(130), ["seated-cable-row"]),
-        slot("lat-pulldown", 3, 8, 8, lb(130), ["assisted-pullup", "wide-lat-pulldown", "pullup"], "Assisted pull-up option: 25 lb assistance"),
+        slot(
+          "lat-pulldown",
+          3,
+          8,
+          8,
+          lb(130),
+          ["assisted-pullup", "wide-lat-pulldown", "pullup"],
+          "Assisted pull-up option: 25 lb assistance",
+        ),
         slot("face-pull", 3, 8, 8, lb(65)),
         slot("biceps-curl", 3, 8, 8, null, ["hammer-curl"]),
         slot("hanging-leg-raise", 3, 12, 12, null, ["ab-wheel", "cable-crunch"]),
@@ -81,10 +89,7 @@ export function seedTemplates(): DayTemplate[] {
     {
       dayType: "rest",
       name: "Rest & Mobility",
-      slots: [
-        slot("incline-walk", 1, 1, 1, null, ["light-walk"]),
-        slot("stretch-foam", 1, 1, 1),
-      ],
+      slots: [slot("incline-walk", 1, 1, 1, null, ["light-walk"]), slot("stretch-foam", 1, 1, 1)],
     },
   ];
 }

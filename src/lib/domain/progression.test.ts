@@ -61,7 +61,15 @@ describe("effectiveLoadKg", () => {
 });
 
 describe("suggestOverload", () => {
-  const base = { exercise: press, repMin: 8, repMax: 8, plannedSets: 3, target: { value: 72.5, unit: "kg" as Unit }, unit: "kg" as Unit, bodyweightKg: null };
+  const base = {
+    exercise: press,
+    repMin: 8,
+    repMax: 8,
+    plannedSets: 3,
+    target: { value: 72.5, unit: "kg" as Unit },
+    unit: "kg" as Unit,
+    bodyweightKg: null,
+  };
 
   it("starts from the template weight with no history", () => {
     const r = suggestOverload({ ...base, history: [] });
@@ -107,7 +115,13 @@ describe("suggestOverload", () => {
     expect(r.action).toBe("hold");
   });
 
-  it("steps back after two sessions under the rep floor at the same weight", () => {
+  it("holds (doesn't step back) when only one rep short", () => {
+    const day = () => [s(80, 8), s(80, 8), s(80, 7)];
+    const r = suggestOverload({ ...base, history: hist("chest-press", [day(), day()]) });
+    expect(r.action).toBe("hold");
+  });
+
+  it("steps back after two sessions well under the rep floor at the same weight", () => {
     const day = () => [s(80, 6), s(80, 5), s(80, 5)];
     const r = suggestOverload({ ...base, history: hist("chest-press", [day(), day()]) });
     expect(r).toMatchObject({ action: "reduce", weight: 76 });

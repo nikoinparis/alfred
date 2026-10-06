@@ -107,11 +107,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   if (!state) return <BootScreen />;
 
-  return (
-    <AppContext.Provider value={{ ...state, ownerVerified, switchMode, resetDemo, refreshOwner }}>
-      {children}
-    </AppContext.Provider>
-  );
+  return <AppContext.Provider value={{ ...state, ownerVerified, switchMode, resetDemo, refreshOwner }}>{children}</AppContext.Provider>;
 }
 
 function BootScreen() {

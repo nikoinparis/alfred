@@ -64,9 +64,7 @@ html {
 }
 
 body {
-  background:
-    radial-gradient(120% 60% at 50% -10%, rgb(127 166 201 / 0.07), transparent 60%),
-    var(--night);
+  background: radial-gradient(120% 60% at 50% -10%, rgb(127 166 201 / 0.07), transparent 60%), var(--night);
   color: var(--bone);
   font-family: var(--font-sans);
   font-feature-settings: "ss02", "tnum";

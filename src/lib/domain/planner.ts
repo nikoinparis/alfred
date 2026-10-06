@@ -121,12 +121,7 @@ function fixedTrainingAhead(byDate: Map<string, DayLog>, date: string): Ahead {
   return { nextType, run };
 }
 
-function choose(
-  state: State,
-  cycle: readonly DayType[],
-  max: number,
-  ahead: Ahead,
-): { dayType: DayType; reason: string; cursor?: number } {
+function choose(state: State, cycle: readonly DayType[], max: number, ahead: Ahead): { dayType: DayType; reason: string; cursor?: number } {
   if (state.consecutive >= max) {
     return { dayType: "rest", reason: `${max} training days in a row. Recover today.` };
   }
@@ -143,9 +138,7 @@ function choose(
   if (ok(candidate)) {
     return {
       dayType: candidate,
-      reason: state.prev && isTraining(state.prev)
-        ? `Follows ${DAY_LABEL[state.prev]} in your cycle.`
-        : "Next up in your cycle.",
+      reason: state.prev && isTraining(state.prev) ? `Follows ${DAY_LABEL[state.prev]} in your cycle.` : "Next up in your cycle.",
     };
   }
 

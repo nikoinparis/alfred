@@ -89,12 +89,7 @@ export interface PR {
  * PRs a just-logged entry sets against all earlier history for the exercise.
  * Assisted lifts skip the "heaviest weight" PR (less assistance isn't a heavier number).
  */
-export function detectPRs(
-  entry: SessionEntry,
-  previous: HistoryPoint[],
-  exercise: Exercise,
-  bw: number | null,
-): PR[] {
+export function detectPRs(entry: SessionEntry, previous: HistoryPoint[], exercise: Exercise, bw: number | null): PR[] {
   if (!previous.length) return [];
   const prs: PR[] = [];
   const e1 = entryBestE1RM(entry, exercise, bw);
@@ -144,7 +139,7 @@ export interface OverloadInput {
  * Double progression:
  * - every planned working set at the top of the rep range → add one increment
  *   (assisted lifts: remove one increment of assistance), unless average RPE ≥ 9.5;
- * - below the bottom of the range two sessions running at the same weight → drop one increment;
+ * - 2+ reps under the range on any set, two sessions running at the same weight → drop one increment;
  * - no e1RM progress across the last three sessions → deload ~10%;
  * - otherwise keep the weight and chase reps.
  */
@@ -176,7 +171,10 @@ export function suggestOverload(input: OverloadInput): OverloadSuggestion {
   const lastWeight = topSet?.weight != null ? round(convert(topSet.weight, topSet.unit, unit)) : null;
   const direction = exercise.loadMode === "assisted" ? -1 : 1;
   const topSetsAtWeight = working.filter(
-    (s) => s.weight !== null && topSet?.weight != null && Math.abs(convert(s.weight, s.unit, "kg") - convert(topSet.weight, topSet.unit, "kg")) < 0.01,
+    (s) =>
+      s.weight !== null &&
+      topSet?.weight != null &&
+      Math.abs(convert(s.weight, s.unit, "kg") - convert(topSet.weight, topSet.unit, "kg")) < 0.01,
   );
 
   // Stall → deload
@@ -199,14 +197,15 @@ export function suggestOverload(input: OverloadInput): OverloadSuggestion {
   if (history.length >= 2 && lastWeight !== null) {
     const prev = history[history.length - 2];
     const sameWeight = Math.abs(prev.topWeightKg - last.topWeightKg) < 0.01;
-    const under = (h: HistoryPoint) => h.entry.sets.filter(isWorking).some((s) => (s.reps ?? 0) < repMin);
+    // Missing a single rep is normal; two or more short on any set means the load is too heavy.
+    const under = (h: HistoryPoint) => h.entry.sets.filter(isWorking).some((s) => (s.reps ?? 0) <= repMin - 2);
     if (sameWeight && under(last) && under(prev)) {
       return {
         action: "reduce",
         weight: round(Math.max(0, lastWeight - direction * inc)),
         unit,
         reps: repMin,
-        reason: `Under ${repMin} reps two sessions in a row. Drop one step and own the range.`,
+        reason: `Well under ${repMin} reps two sessions in a row. Drop one step and own the range.`,
       };
     }
   }
@@ -243,7 +242,10 @@ export function suggestOverload(input: OverloadInput): OverloadSuggestion {
     weight: lastWeight ?? (target ? round(convert(target.value, target.unit, unit)) : null),
     unit,
     reps: bestReps,
-    reason: lastWeight !== null ? `Stay at ${fmt(lastWeight)} ${unit} and push every set toward ${repMax} reps.` : "Log a weight to get suggestions.",
+    reason:
+      lastWeight !== null
+        ? `Stay at ${fmt(lastWeight)} ${unit} and push every set toward ${repMax} reps.`
+        : "Log a weight to get suggestions.",
   };
 }
 

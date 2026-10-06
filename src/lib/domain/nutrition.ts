@@ -237,9 +237,7 @@ export interface CheckInInput {
  */
 export function weeklyCheckIn(input: CheckInInput): CheckIn {
   const actualRate = weeklyRate(input.weighIns, input.asOf);
-  const avgIntake = input.intakeDays.length
-    ? input.intakeDays.reduce((a, b) => a + b, 0) / input.intakeDays.length
-    : null;
+  const avgIntake = input.intakeDays.length ? input.intakeDays.reduce((a, b) => a + b, 0) / input.intakeDays.length : null;
   const base = { actualRate, targetRate: input.targetRate, avgIntake, adjustKcal: 0 };
 
   if (actualRate === null || input.intakeDays.length < 4) {

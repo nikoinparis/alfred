@@ -43,10 +43,24 @@ export default function SettingsPage() {
         <LinkRow href="/body?targets=1" label="Weekly set targets" detail="Per muscle group" />
         <div className="grid grid-cols-2 gap-3 p-4">
           <Field label="Rest, compound (s)">
-            <NumberField label="Compound rest seconds" value={settings.restSeconds} step={15} min={15} max={600} onChange={(v) => v && updateSettings(db, { restSeconds: v })} />
+            <NumberField
+              label="Compound rest seconds"
+              value={settings.restSeconds}
+              step={15}
+              min={15}
+              max={600}
+              onChange={(v) => v && updateSettings(db, { restSeconds: v })}
+            />
           </Field>
           <Field label="Rest, isolation (s)">
-            <NumberField label="Isolation rest seconds" value={settings.restSecondsIsolation} step={15} min={15} max={600} onChange={(v) => v && updateSettings(db, { restSecondsIsolation: v })} />
+            <NumberField
+              label="Isolation rest seconds"
+              value={settings.restSecondsIsolation}
+              step={15}
+              min={15}
+              max={600}
+              onChange={(v) => v && updateSettings(db, { restSecondsIsolation: v })}
+            />
           </Field>
         </div>
         <div className="flex items-center justify-between gap-4 p-4">
@@ -109,7 +123,8 @@ function DataSection() {
       <SectionTitle>Your data</SectionTitle>
       <div className="panel p-4">
         <p className="text-sm text-fog">
-          Everything lives on this device. iOS can clear website storage for apps you haven&apos;t opened in a while, so export a backup now and then.
+          Everything lives on this device. iOS can clear website storage for apps you haven&apos;t opened in a while, so export a backup now
+          and then.
         </p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           <Button
@@ -169,7 +184,8 @@ function DataSection() {
         }
       >
         <p className="text-sm text-fog-2">
-          Importing replaces everything currently in {mode === "demo" ? "the demo" : "Alfred on this device"}: workouts, templates, food and bodyweight.
+          Importing replaces everything currently in {mode === "demo" ? "the demo" : "Alfred on this device"}: workouts, templates, food and
+          bodyweight.
         </p>
       </Sheet>
     </>

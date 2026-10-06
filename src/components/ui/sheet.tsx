@@ -60,7 +60,7 @@ export function Sheet({ open, onClose, title, description, children, footer, siz
             aria-labelledby={titleId}
             tabIndex={-1}
             className={cn(
-              "relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[var(--radius-sheet)] border border-b-0 border-steel bg-kevlar outline-none md:rounded-[var(--radius-sheet)] md:border-b",
+              "relative z-10 flex max-h-[calc(100dvh-var(--safe-top)-72px)] w-full flex-col overflow-hidden rounded-t-[var(--radius-sheet)] border border-b-0 border-steel bg-kevlar outline-none md:rounded-[var(--radius-sheet)] md:border-b",
               size === "lg" ? "md:max-w-2xl" : "md:max-w-lg",
               className,
             )}
@@ -94,17 +94,11 @@ export function Sheet({ open, onClose, title, description, children, footer, siz
                 <X className="size-5" />
               </button>
             </header>
-            <div
-              className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5"
-              onPointerDownCapture={(e) => e.stopPropagation()}
-            >
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5" onPointerDownCapture={(e) => e.stopPropagation()}>
               {children}
             </div>
             {footer && (
-              <footer
-                className="border-t border-steel bg-kevlar px-5 pt-3"
-                style={{ paddingBottom: "max(12px, var(--safe-bottom))" }}
-              >
+              <footer className="border-t border-steel bg-kevlar px-5 pt-3" style={{ paddingBottom: "max(12px, var(--safe-bottom))" }}>
                 {footer}
               </footer>
             )}

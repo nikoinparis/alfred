@@ -5,7 +5,7 @@ import { BASE_CYCLE } from "@/lib/domain/planner";
 import { seedTemplates } from "@/lib/domain/templates";
 import { MUSCLES, type DayLog, type Session, type SetLog } from "@/lib/domain/types";
 import { roundTo } from "@/lib/domain/units";
-import { mulberry32, uid } from "@/lib/id";
+import { mulberry32 } from "@/lib/id";
 import { seedFoods } from "./foods-seed";
 import { DEFAULT_SETTINGS, type AlfredDB, type Bodyweight, type FoodLog, type Settings } from "./schema";
 
@@ -67,11 +67,12 @@ export async function seedDemo(db: AlfredDB, todayISO: string) {
 
     const startedAt = parseISODate(d).getTime() + (17 + Math.floor(rand() * 3)) * 3_600_000;
     let clock = startedAt;
-    const entries = tpl.slots.map((slot) => {
+    const sessionId = `demo-ses-${d}`;
+    const entries = tpl.slots.map((slot, ei) => {
       const ex = EXERCISE_BY_ID[slot.exerciseId];
       const inc = ex.incrementKg || 2.5;
       const st = (state[slot.exerciseId] ??= {
-        kg: slot.target ? roundTo(slot.target.value * 0.88, inc) : DEMO_DEFAULT_KG[slot.exerciseId] ?? 0,
+        kg: slot.target ? roundTo(slot.target.value * 0.88, inc) : (DEMO_DEFAULT_KG[slot.exerciseId] ?? 0),
         reps: slot.repMin,
       });
       const sets: SetLog[] = [];
@@ -79,7 +80,7 @@ export async function seedDemo(db: AlfredDB, todayISO: string) {
         const fatigue = i === slot.sets - 1 && rand() < 0.35 ? 1 : 0;
         clock += 150_000 + Math.floor(rand() * 60_000);
         sets.push({
-          id: uid("set"),
+          id: `${sessionId}-${ei}-${i}`,
           kind: "working",
           weight: ex.loadMode === "bodyweight" ? null : st.kg,
           unit: "kg",
@@ -91,7 +92,14 @@ export async function seedDemo(db: AlfredDB, todayISO: string) {
       }
       if (slot.exerciseId === "chest-press" && rand() < 0.5) {
         const parent = sets[sets.length - 1];
-        sets.push({ ...parent, id: uid("set"), kind: "drop", weight: roundTo(st.kg * 0.8, inc), reps: 8, parentId: parent.id });
+        sets.push({
+          ...parent,
+          id: `${sessionId}-${ei}-drop`,
+          kind: "drop",
+          weight: roundTo(st.kg * 0.8, inc),
+          reps: 8,
+          parentId: parent.id,
+        });
       }
       const allTop = sets.filter((s) => s.kind === "working").every((s) => (s.reps ?? 0) >= slot.repMax);
       if (allTop && ex.loadMode !== "bodyweight") {
@@ -101,7 +109,7 @@ export async function seedDemo(db: AlfredDB, todayISO: string) {
         st.reps = Math.min(slot.repMax, st.reps + 1);
       }
       return {
-        id: uid("ent"),
+        id: `${sessionId}-${ei}`,
         slotId: slot.id,
         exerciseId: slot.exerciseId,
         repMin: slot.repMin,
@@ -111,7 +119,7 @@ export async function seedDemo(db: AlfredDB, todayISO: string) {
       };
     });
     sessions.push({
-      id: uid("ses"),
+      id: sessionId,
       date: d,
       dayType: type,
       startedAt,
@@ -132,10 +140,25 @@ export async function seedDemo(db: AlfredDB, todayISO: string) {
   const foods = Object.fromEntries((await db.foods.toArray()).map((f) => [f.id, f]));
   const foodLogs: FoodLog[] = [];
   const day = [
-    [["oats", 1], ["whey", 1], ["pisang", 1]],
-    [["nasi-putih", 1], ["ayam-bakar", 1], ["tempe-goreng", 1]],
-    [["greek-yogurt", 1], ["telur-rebus", 2]],
-    [["nasi-putih", 1], ["dada-ayam", 2], ["tahu-goreng", 0.5]],
+    [
+      ["oats", 1],
+      ["whey", 1],
+      ["pisang", 1],
+    ],
+    [
+      ["nasi-putih", 1],
+      ["ayam-bakar", 1],
+      ["tempe-goreng", 1],
+    ],
+    [
+      ["greek-yogurt", 1],
+      ["telur-rebus", 2],
+    ],
+    [
+      ["nasi-putih", 1],
+      ["dada-ayam", 2],
+      ["tahu-goreng", 0.5],
+    ],
   ] as const;
   const swaps = ["nasi-padang", "soto-ayam", "bakso", "sate-ayam", "gado-gado"];
   for (let i = 1; i <= 21; i++) {
@@ -143,12 +166,12 @@ export async function seedDemo(db: AlfredDB, todayISO: string) {
     if (rand() < 0.1) continue;
     day.forEach((meal, mi) => {
       const items = mi === 3 && rand() < 0.4 ? [[swaps[Math.floor(rand() * swaps.length)], 1] as const] : meal;
-      for (const [fid, servings] of items) {
+      items.forEach(([fid, servings], k) => {
         const f = foods[fid];
-        if (!f) continue;
+        if (!f) return;
         const s = servings * (0.9 + rand() * 0.25);
         foodLogs.push({
-          id: uid("fl"),
+          id: `demo-fl-${date}-${mi}-${k}`,
           date,
           createdAt: parseISODate(date).getTime() + (7 + mi * 4) * 3_600_000,
           name: f.name,
@@ -160,7 +183,7 @@ export async function seedDemo(db: AlfredDB, todayISO: string) {
           source: "food",
           foodId: f.id,
         });
-      }
+      });
     });
   }
 
@@ -170,8 +193,24 @@ export async function seedDemo(db: AlfredDB, todayISO: string) {
     await db.bodyweights.bulkPut(bodyweights);
     await db.foodLogs.bulkPut(foodLogs);
     await db.meals.bulkPut([
-      { id: "meal-breakfast", name: "Gym breakfast", items: [{ foodId: "oats", servings: 1 }, { foodId: "whey", servings: 1 }, { foodId: "pisang", servings: 1 }] },
-      { id: "meal-lunch", name: "Nasi + ayam bakar + tempe", items: [{ foodId: "nasi-putih", servings: 1 }, { foodId: "ayam-bakar", servings: 1 }, { foodId: "tempe-goreng", servings: 1 }] },
+      {
+        id: "meal-breakfast",
+        name: "Gym breakfast",
+        items: [
+          { foodId: "oats", servings: 1 },
+          { foodId: "whey", servings: 1 },
+          { foodId: "pisang", servings: 1 },
+        ],
+      },
+      {
+        id: "meal-lunch",
+        name: "Nasi + ayam bakar + tempe",
+        items: [
+          { foodId: "nasi-putih", servings: 1 },
+          { foodId: "ayam-bakar", servings: 1 },
+          { foodId: "tempe-goreng", servings: 1 },
+        ],
+      },
     ]);
   });
 }

@@ -43,3 +43,15 @@ describe("demo seed", () => {
     expect(await db.bodyweights.count()).toBeGreaterThan(40);
   });
 });
+
+describe("demo seed idempotency", () => {
+  it("seeding twice doesn't duplicate anything", async () => {
+    const db = new AlfredDB("demo-twice");
+    await seedDemo(db, "2026-10-07");
+    const n = await db.sessions.count();
+    const f = await db.foodLogs.count();
+    await seedDemo(db, "2026-10-07");
+    expect(await db.sessions.count()).toBe(n);
+    expect(await db.foodLogs.count()).toBe(f);
+  });
+});

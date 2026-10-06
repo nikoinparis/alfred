@@ -1,5 +1,56 @@
 # Roadmap
 
+## ☀️ Morning summary (overnight build, 7 Oct 2026)
+
+**Live:** https://alfred-orpin.vercel.app · **Repo:** https://github.com/nikoinparis/alfred (public, auto-deploys on push to `main`)
+
+All five milestones are built, tested (76 unit tests), committed one per milestone, and deployed. The public URL opens in demo mode with a fictional athlete; your data only exists on your devices once you unlock.
+
+### Do these first (about 5 minutes)
+
+1. **Vercel → alfred → Settings → Environment Variables**, add `OWNER_PASSPHRASE` (pick a long one) and `ANTHROPIC_API_KEY`. Then **Deployments → ⋯ → Redeploy**.
+2. **On your iPhone:** open the URL in Safari → Share → Add to Home Screen → open it → Settings → Access → enter the passphrase. You start with an empty log plus your split as templates.
+3. Tap through every tab once while online so it's cached for the gym.
+
+### Decisions I made while you slept (change any of them)
+
+- **Units:** kg default; your lb working weights were converted and rounded to 0.5 kg (160 lb → 72.5 kg). Switch to lb in Settings any time.
+- **"DB Chest Press @160"** is stored as total load. Rest after compound lifts is 150 s, isolation 90 s (Settings).
+- **Lat pulldown slot** offers Assisted Pull-up as a swap; your 25 lb assistance is in the slot note. For assisted lifts, "progress" means less assistance.
+- **Drop sets** count 0.5 hard set each. Warm-ups count 0.
+- **Overload rule:** hit the top of the rep range on every planned set → +1 increment (2.5 kg barbell, 4 kg dumbbell pair, 5 kg cable/machine; editable per exercise). One rep short = hold; two or more short twice = step back; 3 sessions without progress = deload.
+- **Weekly targets:** 10 sets for major muscles, fewer for front delts (6), forearms (6), lower back/adductors/obliques (4). Edit on the Body tab.
+- **3D body:** a stylised figure built in code instead of an anatomical model (see the section below for options and the upgrade path).
+- **UI kit:** hand-rolled components instead of shadcn/ui, so the look is specific and the bundle stays small.
+- **Photo AI:** Claude Sonnet 5.5 at low effort (~1¢/photo), with Anthropic's server-side refusal fallback enabled. Set `ANTHROPIC_VISION_MODEL=claude-haiku-4-5` to halve the cost.
+- **Demo athlete** resets every visit, and recruiters' photo attempts get a canned sample (no API spend).
+
+### Known gaps / honest notes
+
+- I couldn't run a live photo estimate (no API key on the Mac). The route's auth, validation and error paths are verified; the first real call happens once you add the key.
+- The 3D figure is the weakest visual. It works (rotate, zoom, tap) but reads as a mannequin.
+- The rest-timer chime can't play while iOS has the app backgrounded (web apps can't). Keep the app open between sets.
+- Offline: pages and assets are cached after the first visit. Photo estimates obviously need a connection.
+
+## Suggested next improvements (ranked by value ÷ effort)
+
+| # | Idea | Value | Effort | Notes |
+|---|------|-------|--------|-------|
+| 1 | **Automatic weekly backup reminder** + one-tap "export to Files" | High | S | Protects against iOS storage eviction, the biggest data-loss risk. |
+| 2 | **Next-set prefill after a drop/back-off** and a "same as last set" button | High | S | Fewer taps mid-set. |
+| 3 | **RPE-aware suggestions** (auto-regulate the increment when RPE ≤ 7) | Med-High | S | The data is already captured per set. |
+| 4 | **Lock-screen rest notifications** via Web Push (iOS 16.4+ home-screen apps) | High | M | Needs VAPID keys + a tiny push route; free. |
+| 5 | **Deload week detector** across all lifts (≥3 exercises stalled or 6+ hard weeks) → plan banner | Med | S | Per-exercise deload logic already exists. |
+| 6 | **Supabase sync** (free tier) for phone ↔ laptop | High | L | Row-level security on your user only; keeps local-first. |
+| 7 | **Barcode scan** for packaged foods (Open Food Facts, free) | Med | M | Great for Indonesian snacks and protein bars. |
+| 8 | **Apple Health-style monthly report** (volume, PRs, bodyweight, adherence) as a shareable card | Med | M | Reuses the share-card renderer. |
+| 9 | **Anatomical 3D model** via Z-Anatomy → GLB | Med | L | Steps below; mainly visual. |
+| 10 | **Per-exercise notes history** (seat settings, grips) shown in the logger | Med | S | Notes are already saved per entry. |
+
+Tell me which ones you want and I'll take them in order.
+
+## Milestones
+
 | # | Milestone | Status |
 |---|-----------|--------|
 | 0 | Foundation: design system, PWA shell, local DB, seed split, demo/owner modes, backup | ✅ |
@@ -8,6 +59,8 @@
 | 3 | Body heatmap (2D + 3D) | ✅ |
 | 4 | Calorie & macro tracking, quick-add, saved meals, bodyweight trend | ✅ |
 | 5 | Photo-to-macros, goal engine, weekly check-in | ✅ |
+
+Approved extras, all shipped: JSON/CSV export + import, plate calculator, warm-up ramp generator, session summary card, weekly review + streaks, Indonesian foods quick-add.
 
 ## 3D body model: options and what shipped
 
@@ -20,6 +73,6 @@ Goal: a rotatable body where each muscle group is its own mesh, coloured by week
 | Sketchfab écorché models | Varies (often CC BY) | Usually one mesh | Look great, but you'd have to cut muscles apart by hand. |
 | **Stylised low-poly figure built in code** ✅ shipped | Ours | Yes, by construction | Tiny (no asset download), instant, every region is data in `body-map-3d.tsx`. Reads as "suit armour" rather than anatomy. |
 
-**Shipped:** the stylised figure: a dark mannequin with muscle plates built from primitives (react-three-fiber, lazy-loaded only when you open 3D). Rotate, pinch-zoom, tap a muscle. The 2D SVG view stays as the default and fallback.
+**Shipped:** the stylised figure: a mannequin with muscle plates built from primitives (react-three-fiber, lazy-loaded only when you open 3D). Rotate, pinch-zoom, tap a muscle. The 2D SVG view stays as the default and fallback.
 
 **Recommended upgrade if you want anatomical realism:** take Z-Anatomy into Blender, join meshes into the 17 groups in `src/lib/domain/muscles.ts`, name each object after its muscle key, decimate to ~60k tris total, export `public/models/body.glb` with Draco, and swap the primitives for `useGLTF` meshes keyed by name. The heat colouring and selection code don't change. Add attribution (CC BY-SA) on the About page.

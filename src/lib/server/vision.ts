@@ -105,6 +105,9 @@ async function estimateWithGemini(input: VisionInput): Promise<{ estimate: MealE
     signal: AbortSignal.timeout(45_000),
   });
   if (res.status === 429) throw new VisionError("Gemini free-tier limit hit. Wait a minute and retry.", 429);
+  if (res.status === 404)
+    throw new VisionError(`Gemini model "${model}" isn't available. Set GEMINI_VISION_MODEL to a current Flash model.`, 502);
+  if (res.status === 403) throw new VisionError("Gemini refused this key. Check GEMINI_API_KEY in Vercel.", 502);
   if (!res.ok) throw new VisionError(`Gemini error (${res.status}).`, 502);
   const body = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
   const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";

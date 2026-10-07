@@ -1,216 +1,236 @@
 "use client";
 
-import { Canvas, type ThreeEvent } from "@react-three/fiber";
-import { ContactShadows, OrbitControls } from "@react-three/drei";
-import { useMemo, useState } from "react";
-import type { Muscle } from "@/lib/domain/types";
+import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
+import { ContactShadows, Environment, Lightformer, OrbitControls, useGLTF } from "@react-three/drei";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import * as THREE from "three";
+import { MUSCLE_META } from "@/lib/domain/muscles";
+import { MUSCLES, type Muscle } from "@/lib/domain/types";
+import { cn } from "@/lib/cn";
 import type { HeatCell, HeatStatus } from "./body-map-2d";
 
-type V3 = [number, number, number];
-
-interface Part {
-  shape: "sphere" | "capsule" | "box";
-  position: V3;
-  scale: V3;
-  rotation?: V3;
-  /** Also place a copy at -x. */
-  mirror?: boolean;
-  /** Capsule length. */
-  length?: number;
-}
-
 /**
- * Stylised low-poly figure built from primitives: a dark "suit" mannequin with
- * muscle plates layered on top. Each muscle is one or more ellipsoids, so new
- * regions are just data. Units ≈ 0.5 m, y up, +z faces the viewer.
+ * Anatomical écorché built from BodyParts3D (© DBCLS, CC BY 4.0) by scripts/body-model/build.mjs.
+ * Every app muscle group is its own mesh, named by its key, so colouring and picking are by name.
  */
-const BASE: Part[] = [
-  { shape: "sphere", position: [0, 3.25, 0], scale: [0.25, 0.3, 0.27] },
-  { shape: "capsule", position: [0, 2.93, -0.02], scale: [0.12, 1, 0.12], length: 0.14 },
-  // V-taper: broad ribcage, narrower waist, pelvis.
-  { shape: "sphere", position: [0, 2.43, 0], scale: [0.5, 0.42, 0.27] },
-  { shape: "sphere", position: [0, 1.98, 0], scale: [0.36, 0.38, 0.23] },
-  { shape: "sphere", position: [0, 1.6, 0], scale: [0.37, 0.25, 0.25] },
-  { shape: "sphere", position: [0.62, 2.62, 0], scale: [0.14, 0.14, 0.14], mirror: true },
-  { shape: "capsule", position: [0, 2.78, -0.02], scale: [0.2, 1, 0.16], length: 0.12, rotation: [0, 0, Math.PI / 2] },
-  { shape: "capsule", position: [0.71, 2.33, 0], scale: [0.11, 1, 0.11], length: 0.46, rotation: [0, 0, 0.1], mirror: true },
-  { shape: "capsule", position: [0.79, 1.74, 0.02], scale: [0.09, 1, 0.09], length: 0.46, rotation: [0, 0, 0.04], mirror: true },
-  { shape: "sphere", position: [0.82, 1.35, 0.03], scale: [0.08, 0.11, 0.06], mirror: true },
-  { shape: "capsule", position: [0.22, 1.17, 0], scale: [0.16, 1, 0.16], length: 0.58, mirror: true },
-  { shape: "sphere", position: [0.22, 0.83, 0.03], scale: [0.11, 0.1, 0.11], mirror: true },
-  { shape: "capsule", position: [0.23, 0.46, 0], scale: [0.105, 1, 0.105], length: 0.56, mirror: true },
-  { shape: "box", position: [0.23, 0.05, 0.08], scale: [0.16, 0.08, 0.32], mirror: true },
-];
+const MODEL_URL = "/models/body.glb";
 
-const MUSCLE_PARTS: Record<Muscle, Part[]> = {
-  chest: [{ shape: "sphere", position: [0.19, 2.5, 0.23], scale: [0.23, 0.16, 0.075], rotation: [0, 0.25, -0.12], mirror: true }],
-  frontDelts: [{ shape: "sphere", position: [0.58, 2.64, 0.1], scale: [0.12, 0.13, 0.09], mirror: true }],
-  sideDelts: [{ shape: "sphere", position: [0.68, 2.62, 0], scale: [0.09, 0.15, 0.12], mirror: true }],
-  rearDelts: [{ shape: "sphere", position: [0.58, 2.64, -0.1], scale: [0.12, 0.13, 0.09], mirror: true }],
-  biceps: [{ shape: "sphere", position: [0.72, 2.3, 0.08], scale: [0.085, 0.2, 0.075], rotation: [0, 0, 0.1], mirror: true }],
-  triceps: [{ shape: "sphere", position: [0.73, 2.32, -0.07], scale: [0.09, 0.22, 0.08], rotation: [0, 0, 0.1], mirror: true }],
-  forearms: [{ shape: "sphere", position: [0.79, 1.8, 0.02], scale: [0.095, 0.23, 0.095], rotation: [0, 0, 0.04], mirror: true }],
-  upperBack: [
-    { shape: "sphere", position: [0.17, 2.72, -0.12], scale: [0.2, 0.13, 0.11], rotation: [0, 0, 0.35], mirror: true },
-    { shape: "sphere", position: [0, 2.45, -0.24], scale: [0.17, 0.21, 0.07] },
-  ],
-  lats: [{ shape: "sphere", position: [0.3, 2.2, -0.15], scale: [0.15, 0.32, 0.1], rotation: [0, -0.3, 0.22], mirror: true }],
-  lowerBack: [{ shape: "sphere", position: [0.09, 1.85, -0.24], scale: [0.075, 0.19, 0.06], mirror: true }],
-  abs: [
-    { shape: "sphere", position: [0.075, 2.2, 0.255], scale: [0.07, 0.075, 0.035], mirror: true },
-    { shape: "sphere", position: [0.075, 2.03, 0.26], scale: [0.07, 0.075, 0.035], mirror: true },
-    { shape: "sphere", position: [0.075, 1.85, 0.25], scale: [0.07, 0.085, 0.035], mirror: true },
-  ],
-  obliques: [{ shape: "sphere", position: [0.25, 1.97, 0.1], scale: [0.07, 0.2, 0.1], rotation: [0, 0.5, 0], mirror: true }],
-  glutes: [{ shape: "sphere", position: [0.16, 1.52, -0.17], scale: [0.17, 0.17, 0.13], mirror: true }],
-  quads: [{ shape: "sphere", position: [0.24, 1.16, 0.08], scale: [0.15, 0.33, 0.1], rotation: [0, 0, 0.04], mirror: true }],
-  adductors: [{ shape: "sphere", position: [0.1, 1.24, 0.02], scale: [0.06, 0.24, 0.08], mirror: true }],
-  hamstrings: [{ shape: "sphere", position: [0.23, 1.15, -0.09], scale: [0.14, 0.32, 0.1], mirror: true }],
-  calves: [{ shape: "sphere", position: [0.23, 0.55, -0.07], scale: [0.1, 0.21, 0.1], mirror: true }],
+const HEAT: Record<HeatStatus, string> = {
+  untrained: "#d0675f",
+  below: "#dcae55",
+  hit: "#55b597",
 };
 
-const COLORS: Record<HeatStatus, string> = {
-  untrained: "#c0473f",
-  below: "#cf9a38",
-  hit: "#3fa487",
+/** Pastel study palette, in the spirit of colour-coded anatomy references. */
+const ANATOMY: Record<Muscle, string> = {
+  chest: "#e89a8f",
+  frontDelts: "#d98fb4",
+  sideDelts: "#cc8fc0",
+  rearDelts: "#b98fc9",
+  triceps: "#9f9ad6",
+  biceps: "#b48ad1",
+  forearms: "#8fc9a0",
+  upperBack: "#e6a07f",
+  lats: "#8fa6d9",
+  lowerBack: "#d6b07a",
+  abs: "#e8857f",
+  obliques: "#8f9fd1",
+  glutes: "#d68fa8",
+  quads: "#e8988a",
+  hamstrings: "#a3c98f",
+  adductors: "#c6a3d6",
+  calves: "#8fc4c9",
 };
 
-function expand(parts: Part[]): Part[] {
-  return parts.flatMap((p) =>
-    p.mirror
-      ? [
-          p,
-          {
-            ...p,
-            position: [-p.position[0], p.position[1], p.position[2]] as V3,
-            rotation: p.rotation ? ([p.rotation[0], -p.rotation[1], -p.rotation[2]] as V3) : undefined,
-          },
-        ]
-      : [p],
-  );
-}
+const NEUTRAL: Record<string, { color: string; roughness: number }> = {
+  otherMuscles: { color: "#b9a6a1", roughness: 0.7 },
+  tendons: { color: "#e6dccb", roughness: 0.55 },
+  bones: { color: "#e3d8c4", roughness: 0.6 },
+  skin: { color: "#d8c3b2", roughness: 0.65 },
+};
 
-function Shape({ part, children }: { part: Part; children: React.ReactNode }) {
-  if (part.shape === "capsule") {
-    return (
-      // Capsules: scale[0] is the radius, scale[2] / scale[0] squashes depth; height comes from `length`.
-      <mesh position={part.position} rotation={part.rotation} scale={[1, 1, part.scale[2] / part.scale[0]]} castShadow>
-        <capsuleGeometry args={[part.scale[0], part.length ?? 0.5, 8, 16]} />
-        {children}
-      </mesh>
-    );
-  }
-  if (part.shape === "box") {
-    return (
-      <mesh position={part.position} rotation={part.rotation} scale={part.scale} castShadow>
-        <boxGeometry args={[1, 1, 1]} />
-        {children}
-      </mesh>
-    );
-  }
-  return (
-    <mesh position={part.position} rotation={part.rotation} scale={part.scale} castShadow>
-      <sphereGeometry args={[1, 28, 20]} />
-      {children}
-    </mesh>
-  );
-}
+export type BodyColorMode = "heat" | "anatomy";
 
-function MuscleMesh({
-  muscle,
-  cell,
+function Body({
+  heat,
   selected,
   hovered,
+  mode,
   onSelect,
   onHover,
 }: {
-  muscle: Muscle;
-  cell: HeatCell;
-  selected: boolean;
-  hovered: boolean;
+  heat: Record<Muscle, HeatCell>;
+  selected: Muscle | null;
+  hovered: Muscle | null;
+  mode: BodyColorMode;
   onSelect: (m: Muscle) => void;
   onHover: (m: Muscle | null) => void;
 }) {
-  const parts = useMemo(() => expand(MUSCLE_PARTS[muscle]), [muscle]);
-  const color = COLORS[cell.status];
-  const glow = selected ? 0.55 : hovered ? 0.35 : cell.status === "below" ? 0.08 + 0.12 * cell.fraction : 0.14;
+  const gltf = useGLTF(MODEL_URL, false, true);
+  const meshes = useMemo(() => {
+    const out: { name: string; geometry: THREE.BufferGeometry; matrix: THREE.Matrix4 }[] = [];
+    gltf.scene.updateMatrixWorld(true);
+    gltf.scene.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh) {
+        const mesh = o as THREE.Mesh;
+        out.push({ name: mesh.name || mesh.parent?.name || "", geometry: mesh.geometry, matrix: mesh.matrixWorld.clone() });
+      }
+    });
+    return out;
+  }, [gltf]);
+
   return (
-    <group
-      onClick={(e: ThreeEvent<MouseEvent>) => {
-        e.stopPropagation();
-        onSelect(muscle);
-      }}
-      onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-        e.stopPropagation();
-        onHover(muscle);
-      }}
-      onPointerOut={() => onHover(null)}
-    >
-      {parts.map((p, i) => (
-        <Shape key={i} part={p}>
-          <meshStandardMaterial color={color} emissive={color} emissiveIntensity={glow} roughness={0.55} metalness={0.1} />
-        </Shape>
-      ))}
+    <group>
+      {meshes.map(({ name, geometry, matrix }) => {
+        const muscle = (MUSCLES as readonly string[]).includes(name) ? (name as Muscle) : null;
+        if (!muscle) {
+          const n = NEUTRAL[name] ?? NEUTRAL.otherMuscles;
+          return (
+            <mesh key={name} geometry={geometry} matrixAutoUpdate={false} matrix={matrix} castShadow receiveShadow>
+              <meshStandardMaterial color={n.color} roughness={n.roughness} metalness={0} />
+            </mesh>
+          );
+        }
+        const cell = heat[muscle];
+        const base = mode === "heat" ? HEAT[cell.status] : ANATOMY[muscle];
+        const isSel = selected === muscle;
+        const isHover = hovered === muscle;
+        const dim = selected !== null && !isSel;
+        return (
+          <mesh
+            key={name}
+            geometry={geometry}
+            matrixAutoUpdate={false}
+            matrix={matrix}
+            castShadow
+            receiveShadow
+            onClick={(e: ThreeEvent<MouseEvent>) => {
+              e.stopPropagation();
+              onSelect(muscle);
+            }}
+            onPointerOver={(e: ThreeEvent<PointerEvent>) => {
+              e.stopPropagation();
+              onHover(muscle);
+            }}
+            onPointerOut={() => onHover(null)}
+          >
+            <meshStandardMaterial
+              color={base}
+              roughness={0.62}
+              metalness={0}
+              emissive={base}
+              emissiveIntensity={isSel ? 0.35 : isHover ? 0.2 : 0}
+              transparent={dim}
+              opacity={dim ? 0.55 : 1}
+              side={muscle === "abs" || muscle === "lats" ? THREE.DoubleSide : THREE.FrontSide}
+            />
+          </mesh>
+        );
+      })}
     </group>
   );
 }
+
+/** Swings the camera to face the front or back when `side` changes; free orbiting otherwise. */
+function CameraRig({ side, target }: { side: "front" | "back"; target: [number, number, number] }) {
+  const { camera, controls } = useThree() as unknown as {
+    camera: THREE.Camera;
+    controls: { target: THREE.Vector3; update: () => void } | null;
+  };
+  const goal = useRef<number | null>(null);
+  useEffect(() => {
+    goal.current = side === "front" ? 0 : Math.PI;
+  }, [side]);
+  useFrame((_, dt) => {
+    if (goal.current === null || !controls) return;
+    const t = new THREE.Vector3(...target);
+    const offset = camera.position.clone().sub(t);
+    const radius = Math.hypot(offset.x, offset.z);
+    const angle = Math.atan2(offset.x, offset.z);
+    let diff = goal.current - angle;
+    diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+    if (Math.abs(diff) < 0.002) {
+      goal.current = null;
+      return;
+    }
+    const next = angle + diff * Math.min(1, dt * 7);
+    camera.position.set(t.x + Math.sin(next) * radius, camera.position.y, t.z + Math.cos(next) * radius);
+    controls.update();
+  });
+  return null;
+}
+
+const TARGET: [number, number, number] = [0, 0.88, 0];
 
 export default function BodyMap3D({
   heat,
   selected,
   onSelect,
+  side = "front",
 }: {
   heat: Record<Muscle, HeatCell>;
   selected: Muscle | null;
   onSelect: (m: Muscle) => void;
+  side?: "front" | "back";
 }) {
   const [hovered, setHovered] = useState<Muscle | null>(null);
   const [interacted, setInteracted] = useState(false);
-  const base = useMemo(() => expand(BASE), []);
+  const [mode, setMode] = useState<BodyColorMode>("heat");
   const reduceMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   return (
     <div className="relative h-full w-full" style={{ cursor: hovered ? "pointer" : "grab", touchAction: "none" }}>
-      <Canvas shadows dpr={[1, 2]} camera={{ position: [0, 1.85, 7.4], fov: 32 }} gl={{ antialias: true, alpha: true }}>
-        <ambientLight intensity={0.55} />
-        <hemisphereLight args={["#b9c7d6", "#0b0d11", 0.9]} />
-        <directionalLight position={[2.5, 5, 4]} intensity={2} color="#f3e6cf" castShadow />
-        <directionalLight position={[-3, 3, -4]} intensity={1.1} color="#7fa6c9" />
-        <spotLight position={[0, 7, 1]} angle={0.5} penumbra={0.8} intensity={18} color="#e2b04a" />
-        <group position={[0, -0.05, 0]}>
-          {base.map((p, i) => (
-            <Shape key={i} part={p}>
-              <meshStandardMaterial color="#3a4351" roughness={0.55} metalness={0.12} />
-            </Shape>
-          ))}
-          {(Object.keys(MUSCLE_PARTS) as Muscle[]).map((m) => (
-            <MuscleMesh
-              key={m}
-              muscle={m}
-              cell={heat[m]}
-              selected={selected === m}
-              hovered={hovered === m}
-              onSelect={onSelect}
-              onHover={setHovered}
-            />
-          ))}
-        </group>
-        <ContactShadows position={[0, -0.02, 0]} opacity={0.6} scale={4} blur={2.4} far={1.5} />
+      <Canvas shadows dpr={[1, 2]} camera={{ position: [0, 0.95, 4.1], fov: 30 }} gl={{ antialias: true, alpha: true }}>
+        <ambientLight intensity={0.25} />
+        <directionalLight position={[1.5, 3, 2.5]} intensity={1.6} color="#fff4e6" castShadow shadow-mapSize={[1024, 1024]} />
+        <directionalLight position={[-2, 2, -2.5]} intensity={0.9} color="#9ab8d8" />
+        <Environment resolution={256}>
+          <Lightformer intensity={1.4} position={[0, 3, 3]} scale={[6, 2, 1]} color="#ffffff" />
+          <Lightformer intensity={0.6} position={[-4, 1, 0]} rotation-y={Math.PI / 2} scale={[4, 3, 1]} color="#c9d8ea" />
+          <Lightformer intensity={0.5} position={[4, 1, -1]} rotation-y={-Math.PI / 2} scale={[4, 3, 1]} color="#f2dcc0" />
+        </Environment>
+        <Suspense fallback={null}>
+          <Body heat={heat} selected={selected} hovered={hovered} mode={mode} onSelect={onSelect} onHover={setHovered} />
+        </Suspense>
+        <ContactShadows position={[0, 0.001, 0]} opacity={0.55} scale={2.5} blur={2.6} far={1} />
         <OrbitControls
-          target={[0, 1.72, 0]}
+          makeDefault
+          target={TARGET}
           enablePan={false}
-          minDistance={3}
-          maxDistance={10}
-          minPolarAngle={0.35}
+          minDistance={1.2}
+          maxDistance={5}
+          minPolarAngle={0.3}
           maxPolarAngle={1.75}
           autoRotate={!interacted && !reduceMotion}
-          autoRotateSpeed={0.8}
+          autoRotateSpeed={0.7}
           onStart={() => setInteracted(true)}
         />
+        <CameraRig side={side} target={TARGET} />
       </Canvas>
-      <p className="pointer-events-none absolute bottom-2 left-0 right-0 text-center text-xs text-fog">
+
+      <div className="absolute left-3 top-3 flex rounded-full bg-black/40 p-[3px] text-xs font-semibold backdrop-blur-md">
+        {(["heat", "anatomy"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            aria-pressed={mode === m}
+            className={cn("h-8 rounded-full px-3 transition-colors", mode === m ? "bg-white/20 text-bone" : "text-fog-2")}
+          >
+            {m === "heat" ? "This week" : "Anatomy"}
+          </button>
+        ))}
+      </div>
+      {hovered && (
+        <p className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/45 px-3 py-1.5 text-xs font-semibold backdrop-blur-md">
+          {MUSCLE_META[hovered].label}
+        </p>
+      )}
+      <p className="pointer-events-none absolute inset-x-0 bottom-2 text-center text-xs text-fog">
         Drag to rotate · pinch to zoom · tap a muscle
       </p>
     </div>
   );
 }
+
+useGLTF.preload(MODEL_URL, false, true);

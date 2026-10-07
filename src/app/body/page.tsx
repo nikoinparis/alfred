@@ -24,7 +24,8 @@ const BodyMap3D = dynamic(() => import("@/components/body/body-map-3d"), {
   loading: () => <div className="grid h-full place-items-center text-sm text-fog">Loading 3D model…</div>,
 });
 
-type View = "front" | "back" | "3d";
+type Render = "2d" | "3d";
+type Side = "front" | "back";
 
 export default function BodyPage() {
   return (
@@ -41,9 +42,10 @@ function BodyInner() {
   const exercises = useExercises();
   const params = useSearchParams();
   const [week, setWeek] = useState<"this" | "last">("this");
-  const [viewChoice, setView] = useState<View | null>(null);
+  const [renderChoice, setRender] = useState<Render | null>(null);
   // Until the user picks, follow the saved preference (settings load asynchronously).
-  const view: View = viewChoice ?? (settings.bodyView === "3d" ? "3d" : "front");
+  const render: Render = renderChoice ?? settings.bodyView;
+  const [side, setSide] = useState<Side>("front");
   const [selected, setSelected] = useState<Muscle | null>(null);
   const [targetsOpen, setTargetsOpen] = useState(params.get("targets") === "1");
 
@@ -65,9 +67,9 @@ function BodyInner() {
   ) as Record<Muscle, HeatCell>;
   const hitCount = MUSCLES.filter((m) => heat[m].status === "hit").length;
 
-  const changeView = (v: View) => {
-    setView(v);
-    updateSettings(db, { bodyView: v === "3d" ? "3d" : "2d" });
+  const changeRender = (v: Render) => {
+    setRender(v);
+    updateSettings(db, { bodyView: v });
   };
 
   const order: Record<VolumeStatus, number> = { untrained: 0, below: 1, hit: 2 };
@@ -95,33 +97,46 @@ function BodyInner() {
             { value: "last", label: "Last week" },
           ]}
         />
-        <Segmented
-          label="Body view"
-          value={view}
-          onChange={changeView}
-          size="sm"
-          options={[
-            { value: "front", label: "Front" },
-            { value: "back", label: "Back" },
-            { value: "3d", label: "3D" },
-          ]}
-        />
+        <div className="flex gap-2">
+          <Segmented
+            label="Side"
+            value={side}
+            onChange={setSide}
+            size="sm"
+            className="flex-1"
+            options={[
+              { value: "front", label: "Front" },
+              { value: "back", label: "Back" },
+            ]}
+          />
+          <Segmented
+            label="Render"
+            value={render}
+            onChange={changeRender}
+            size="sm"
+            className="w-28"
+            options={[
+              { value: "2d", label: "2D" },
+              { value: "3d", label: "3D" },
+            ]}
+          />
+        </div>
       </div>
 
       <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="panel relative overflow-hidden">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(60%_100%_at_50%_0%,rgb(127_166_201_/_0.10),transparent)]" />
-          {view === "3d" ? (
-            <div className="h-[460px] md:h-[560px]">
-              <BodyMap3D heat={heat} selected={selected} onSelect={setSelected} />
+          {render === "3d" ? (
+            <div className="h-[520px] md:h-[620px]">
+              <BodyMap3D heat={heat} selected={selected} onSelect={setSelected} side={side} />
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-2 p-4 md:grid-cols-2">
-              <div className={cn("mx-auto h-[420px] w-full max-w-[260px] md:h-[500px]", view !== "front" && "hidden md:block")}>
+              <div className={cn("mx-auto h-[420px] w-full max-w-[260px] md:h-[500px]", side !== "front" && "hidden md:block")}>
                 <BodyMap2D view="front" heat={heat} selected={selected} onSelect={setSelected} />
                 <p className="mt-1 hidden text-center text-xs text-fog md:block">Front</p>
               </div>
-              <div className={cn("mx-auto h-[420px] w-full max-w-[260px] md:h-[500px]", view !== "back" && "hidden md:block")}>
+              <div className={cn("mx-auto h-[420px] w-full max-w-[260px] md:h-[500px]", side !== "back" && "hidden md:block")}>
                 <BodyMap2D view="back" heat={heat} selected={selected} onSelect={setSelected} />
                 <p className="mt-1 hidden text-center text-xs text-fog md:block">Back</p>
               </div>
@@ -147,7 +162,7 @@ function BodyInner() {
                     )}
                   >
                     <StatusDot status={cell.status} />
-                    <span className="min-w-0 flex-1 truncate text-[15px]">{MUSCLE_META[m].label}</span>
+                    <span className="min-w-0 flex-1 truncate text-base">{MUSCLE_META[m].label}</span>
                     <span className="h-1.5 w-20 overflow-hidden rounded-full bg-steel" aria-hidden>
                       <span
                         className={cn(
@@ -204,7 +219,7 @@ function Legend() {
     ["Target hit", "var(--verdigris)", false],
   ];
   return (
-    <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 border-t border-steel px-4 py-3 text-xs text-fog-2">
+    <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 border-t border-separator px-4 py-3 text-xs text-fog-2">
       {items.map(([label, color, hatch], i) => (
         <span key={label} className="flex items-center gap-2">
           <svg width="14" height="14" aria-hidden>

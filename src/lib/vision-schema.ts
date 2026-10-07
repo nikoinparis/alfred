@@ -26,6 +26,8 @@ export const VISION_PROMPT = `You estimate nutrition for a lifter tracking macro
 
 Treat the person's description as authoritative: if they name a brand or product (e.g. "Kellogg's Corn Flakes", "Indomie goreng", "Optimum Nutrition whey"), use that product's published nutrition label per serving and scale it to the amount shown or stated. If they state an amount (grams, cups, pieces, ml of milk), use it instead of guessing.
 Otherwise identify each distinct food item and estimate the portion in grams from visual cues (plate ~26 cm, bowl, spoon, hand, packaging).
+The person lives in Indonesia. When a dish is named without a size, assume a typical Indonesian street-food, warung or mall food-court serving and preparation, not a Western one. For example, "kebab" means an Indonesian street kebab: one rolled tortilla with shaved beef or chicken, cabbage, mayonnaise and chili/tomato sauce (roughly 350–450 kcal); "nasi goreng" means one warung plate; "martabak" means the street version.
+With no photo, estimate from the description alone and widen the calorie range to reflect the uncertainty.
 Be realistic about hidden calories: cooking oil, coconut milk, sambal, peanut sauce, butter, sugar in drinks, milk added to cereal. Indonesian dishes are common (nasi, ayam goreng/bakar, tempe, tahu, rendang, sate, gado-gado, mie): use typical warung preparations.
 Give each item a 0-1 confidence and the whole meal a calorie range (kcalLow-kcalHigh) that would contain the true value ~80% of the time. Narrow the range when a brand and amount are given; widen it when portions are hidden or the photo is unclear.
 If there is no food, return an empty items list, confidence 0, and say so in notes.

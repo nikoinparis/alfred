@@ -210,21 +210,18 @@ export default function PlanPage() {
 
       <Sheet open={rulesOpen} onClose={() => setRulesOpen(false)} title="How suggestions work">
         <ol className="list-decimal space-y-2.5 pl-5 text-base leading-relaxed text-fog-2">
+          <li>The ideal week, Monday to Sunday: Push, Pull, Legs, rest, Upper, Lower, rest. Every Monday starts fresh.</li>
+          <li>Push and Pull go back to back. Legs goes before or after that pair: Push → Pull → Legs, or Legs → Push → Pull.</li>
+          <li>Upper and Lower go back to back in either order, with a rest day between them and Push/Pull/Legs.</li>
           <li>
-            Your split is two blocks: Push, Pull and Legs in any order, then Upper and Lower in either order. Finishing a block earns a rest
-            day.
+            Starting mid-week, Alfred fits what it can before Sunday: Push/Pull/Legs first, then Upper ahead of Lower. Start Thursday and
+            you get Push, Pull, Legs, rest; start Wednesday and you get Push, Pull, Legs, rest, Upper.
           </li>
           <li>
-            Alfred follows what you actually trained. Start with Legs and it suggests Push and Pull next; do Lower first and Upper is next,
-            not rest.
+            Never more than {settings.maxConsecutive} training days in a row. Missed days aren&apos;t made up by skipping ahead; the next
+            session is still owed.
           </li>
-          <li>Missed or skipped days count as rest. Days you still owe in a block stay owed.</li>
-          <li>Never more than {settings.maxConsecutive} training days in a row, counting days you&apos;ve already planned.</li>
-          <li>
-            Never the same muscle group on back-to-back days (Upper overlaps Push and Pull; Legs and Lower overlap). If the next pick would
-            clash, it takes another day from the block.
-          </li>
-          <li>Suggestions are ghosts until you accept them. Pick any day type on the day itself and everything after re-plans.</li>
+          <li>Suggestions are dashed until you accept them. Pick any day type on the day itself and everything after re-plans.</li>
         </ol>
       </Sheet>
     </Page>

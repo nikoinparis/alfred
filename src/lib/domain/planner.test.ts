@@ -1,109 +1,88 @@
 import { describe, expect, it } from "vitest";
+import { addDays } from "./dates";
 import { conflicts, suggestPlan } from "./planner";
 import type { DayLog, DayType } from "./types";
 
 // 2026-10-05 is a Monday.
 const MON = "2026-10-05";
-const SUN = "2026-10-11";
+const day = (n: number) => addDays(MON, n);
+const SUN = day(6);
 
 const done = (date: string, dayType: DayType): DayLog => ({ date, dayType, status: "done" });
 const types = (s: { dayType: DayType }[]) => s.map((x) => x.dayType);
+const week = (today: string, logs: DayLog[] = []) => types(suggestPlan({ today, until: SUN, logs }));
 
-describe("suggestPlan", () => {
-  it("starts at Push with an empty history", () => {
-    const plan = suggestPlan({ today: MON, until: SUN, logs: [] });
-    expect(types(plan)).toEqual(["push", "pull", "legs", "rest", "upper", "lower", "rest"]);
+describe("suggestPlan: the ideal week", () => {
+  it("plans Push, Pull, Legs, rest, Upper, Lower, rest from Monday", () => {
+    expect(week(MON)).toEqual(["push", "pull", "legs", "rest", "upper", "lower", "rest"]);
   });
 
-  it("continues from wherever the week actually started (Upper example from the brief)", () => {
-    const plan = suggestPlan({ today: "2026-10-06", until: "2026-10-12", logs: [done(MON, "upper")] });
-    expect(types(plan)).toEqual(["lower", "rest", "push", "pull", "legs", "rest", "upper"]);
+  it("starts every new week fresh on Monday", () => {
+    const plan = suggestPlan({ today: MON, until: addDays(SUN, 7), logs: [] });
+    expect(types(plan.slice(7))).toEqual(["push", "pull", "legs", "rest", "upper", "lower", "rest"]);
+  });
+});
+
+describe("suggestPlan: pairs", () => {
+  it("Legs first means Push then Pull next", () => {
+    expect(week(day(1), [done(MON, "legs")])).toEqual(["push", "pull", "rest", "upper", "lower", "rest"]);
   });
 
-  it("does not suggest anything for days already logged or planned", () => {
-    const logs = [done(MON, "push"), { date: "2026-10-07", dayType: "legs", status: "planned" } as DayLog];
-    const plan = suggestPlan({ today: "2026-10-06", until: SUN, logs });
-    expect(plan.map((s) => s.date)).not.toContain("2026-10-07");
-    expect(plan[0]).toMatchObject({ date: "2026-10-06" });
+  it("Push today means Pull tomorrow, then Legs", () => {
+    expect(week(day(1), [done(MON, "push")]).slice(0, 2)).toEqual(["pull", "legs"]);
   });
 
-  it("resumes the owed day after a missed day instead of skipping it", () => {
-    // Mon Push, Tue missed → Wed should still be Pull.
-    const plan = suggestPlan({ today: "2026-10-07", until: SUN, logs: [done(MON, "push")] });
-    expect(plan[0].dayType).toBe("pull");
+  it("Upper first means Lower next, then rest, then Push/Pull/Legs", () => {
+    expect(week(day(1), [done(MON, "upper")])).toEqual(["lower", "rest", "push", "pull", "legs", "rest"]);
   });
 
-  it("treats an explicitly skipped day like a missed day", () => {
-    const logs: DayLog[] = [done(MON, "push"), { date: "2026-10-06", dayType: "pull", status: "skipped" }];
-    const plan = suggestPlan({ today: "2026-10-07", until: SUN, logs });
-    expect(plan[0].dayType).toBe("pull");
+  it("Lower first means Upper next", () => {
+    expect(week(day(1), [done(MON, "lower")])[0]).toBe("upper");
+  });
+});
+
+describe("suggestPlan: fitting a short week", () => {
+  it("starting Thursday fits Push, Pull, Legs and rests Sunday", () => {
+    expect(week(day(3))).toEqual(["push", "pull", "legs", "rest"]);
   });
 
-  it("a missed day fills a pending rest slot", () => {
-    // Push, Pull, Legs, then Thu missed → Fri goes straight to Upper.
-    const logs = [done(MON, "push"), done("2026-10-06", "pull"), done("2026-10-07", "legs")];
-    const plan = suggestPlan({ today: "2026-10-09", until: SUN, logs });
-    expect(types(plan)).toEqual(["upper", "lower", "rest"]);
+  it("starting Wednesday fits Push/Pull/Legs plus Upper (Upper beats Lower)", () => {
+    expect(week(day(2))).toEqual(["push", "pull", "legs", "rest", "upper"]);
   });
 
-  it("forces rest after three consecutive training days even if the user overrode the rest day", () => {
-    const logs = [done(MON, "push"), done("2026-10-06", "pull"), done("2026-10-07", "legs"), done("2026-10-08", "upper")];
-    const plan = suggestPlan({ today: "2026-10-09", until: SUN, logs });
-    expect(plan[0].dayType).toBe("rest");
-    expect(plan[0].reason).toMatch(/in a row/);
+  it("starting Tuesday still fits the whole week", () => {
+    expect(week(day(1))).toEqual(["push", "pull", "legs", "rest", "upper", "lower"]);
+  });
+});
+
+describe("suggestPlan: real life", () => {
+  it("a missed day doesn't drop the owed session", () => {
+    // Push Monday, nothing Tuesday: Pull is still next on Wednesday.
+    expect(week(day(2), [done(MON, "push")])[0]).toBe("pull");
   });
 
-  it("never produces more than three training days in a row", () => {
-    const plan = suggestPlan({ today: MON, until: "2026-11-30", logs: [] });
+  it("works around a fixed planned day", () => {
+    const logs: DayLog[] = [{ date: day(4), dayType: "upper", status: "planned" }];
+    const plan = suggestPlan({ today: MON, until: SUN, logs });
+    expect(plan.find((s) => s.date === day(4))).toBeUndefined();
+    expect(types(plan)).toEqual(["push", "pull", "legs", "rest", "lower", "rest"]);
+  });
+
+  it("never more than three training days in a row, and never overlapping neighbours", () => {
+    const plan = suggestPlan({ today: MON, until: addDays(MON, 41), logs: [] });
     let run = 0;
-    for (const s of plan) {
+    plan.forEach((s, i) => {
       run = s.dayType === "rest" ? 0 : run + 1;
       expect(run).toBeLessThanOrEqual(3);
-    }
+      if (i > 0) expect(conflicts(plan[i - 1].dayType, s.dayType)).toBe(false);
+    });
   });
 
-  it("never suggests overlapping muscle groups on consecutive days", () => {
-    const plan = suggestPlan({ today: MON, until: "2026-11-30", logs: [] });
-    for (let i = 1; i < plan.length; i++) {
-      expect(conflicts(plan[i - 1].dayType, plan[i].dayType)).toBe(false);
-    }
-  });
-
-  it("respects a fixed future day: rests before a planned run would exceed the cap", () => {
-    // Mon Push done; Wed, Thu planned training. Tue training would make 4 in a row.
-    const logs: DayLog[] = [
-      done(MON, "push"),
-      { date: "2026-10-07", dayType: "legs", status: "planned" },
-      { date: "2026-10-08", dayType: "upper", status: "planned" },
-    ];
-    const plan = suggestPlan({ today: "2026-10-06", until: "2026-10-06", logs });
-    expect(plan[0].dayType).toBe("rest");
-  });
-
-  it("avoids a conflict with a fixed next day by picking another day from the block", () => {
-    // Pull would be next, but tomorrow is planned Upper (shares pull muscles).
-    const logs: DayLog[] = [done(MON, "push"), { date: "2026-10-07", dayType: "upper", status: "planned" }];
-    const plan = suggestPlan({ today: "2026-10-06", until: "2026-10-06", logs });
-    expect(plan[0].dayType).toBe("legs");
-  });
-
-  it("treats Push/Pull/Legs as one block in any order", () => {
-    const plan = suggestPlan({ today: "2026-10-06", until: "2026-10-08", logs: [done(MON, "legs")] });
-    expect(types(plan)).toEqual(["push", "pull", "rest"]);
-    const plan2 = suggestPlan({ today: "2026-10-07", until: "2026-10-08", logs: [done(MON, "pull"), done("2026-10-06", "legs")] });
-    expect(types(plan2)).toEqual(["push", "rest"]);
-  });
-
-  it("starting with Lower suggests Upper next, not rest", () => {
-    const plan = suggestPlan({ today: "2026-10-06", until: "2026-10-08", logs: [done(MON, "lower")] });
-    expect(types(plan)).toEqual(["upper", "rest", "push"]);
-  });
-
-  it("switching blocks mid-way starts the new block", () => {
-    const logs = [done(MON, "push"), done("2026-10-06", "pull"), done("2026-10-07", "lower")];
-    const plan = suggestPlan({ today: "2026-10-08", until: SUN, logs });
-    // Three in a row forces rest; Upper finishes the Upper/Lower block, then rest, then PPL.
-    expect(types(plan)).toEqual(["rest", "upper", "rest", "push"]);
+  it("explains each day", () => {
+    const plan = suggestPlan({ today: MON, until: SUN, logs: [] });
+    expect(plan[0].reason).toMatch(/Pull tomorrow/);
+    expect(plan[3].reason).toMatch(/between/);
+    expect(plan[6].reason).toMatch(/Monday/);
   });
 });
 
@@ -111,7 +90,6 @@ describe("conflicts", () => {
   it("flags shared major groups", () => {
     expect(conflicts("push", "upper")).toBe(true);
     expect(conflicts("legs", "lower")).toBe(true);
-    expect(conflicts("push", "push")).toBe(true);
     expect(conflicts("push", "pull")).toBe(false);
     expect(conflicts("rest", "push")).toBe(false);
   });

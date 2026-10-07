@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { format } from "date-fns";
-import { Camera, ChevronLeft, ChevronRight, Plus, Sparkles, Target, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles, Target, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useApp, useSettings } from "@/components/providers/app-provider";
 import { AddFoodSheet, MacroLine } from "@/components/fuel/add-food-sheet";
 import { BodyweightCard } from "@/components/fuel/bodyweight-card";
 import { GoalCard } from "@/components/fuel/goal-card";
 import { MacroRings } from "@/components/fuel/macro-rings";
-import { PhotoMacrosSheet } from "@/components/fuel/photo-macros";
+import { PhotoMacrosSheet, type MealStart } from "@/components/fuel/photo-macros";
+import { FoodComposer } from "@/components/fuel/food-composer";
 import { WeeklySummary } from "@/components/fuel/weekly-summary";
 import { Page, SectionTitle } from "@/components/shell/page";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -30,13 +31,14 @@ export default function FuelPage() {
   const bw = useLatestBodyweight();
   const [offset, setOffset] = useState(0);
   const [adding, setAdding] = useState(false);
-  const [photo, setPhoto] = useState(false);
+  const [meal, setMeal] = useState<{ key: number; start: MealStart } | null>(null);
+  const openMeal = (start: MealStart) => setMeal((m) => ({ key: (m?.key ?? 0) + 1, start }));
   const [editing, setEditing] = useState<FoodLog | null>(null);
   const date = addDays(t, offset);
 
   const dayLogs = useLiveQuery(() => db.foodLogs.where("date").equals(date).sortBy("createdAt"), [db, date]);
   const weekLogs = useLiveQuery(() => db.foodLogs.where("date").between(addDays(date, -6), date, true, true).toArray(), [db, date]);
-  const { targets, source } = resolveTargets(settings, bw);
+  const { targets, source, maintenance } = resolveTargets(settings, bw);
   const totals = sumLogs(dayLogs ?? []);
   const label = offset === 0 ? "Today" : offset === -1 ? "Yesterday" : format(parseISODate(date), "EEE d MMM");
 
@@ -65,11 +67,6 @@ export default function FuelPage() {
         </Button>
       </div>
 
-      {source === "goal" && (
-        <div className="mt-3">
-          <GoalCard targets={targets} />
-        </div>
-      )}
       {source === "fallback" && (
         <Link href="/fuel/goals" className="panel mt-3 flex items-center gap-3 border-signal/40 p-3.5 hover:border-signal">
           <Target className="size-5 shrink-0 text-signal" />
@@ -82,16 +79,14 @@ export default function FuelPage() {
       )}
 
       <div className="mt-3">
-        <MacroRings totals={totals} targets={targets} />
+        <FoodComposer
+          onDescribe={(text) => openMeal({ note: text, auto: true })}
+          onPhoto={(p) => openMeal({ photo: p })}
+          onBrowse={() => setAdding(true)}
+        />
       </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <Button variant="primary" size="lg" onClick={() => setAdding(true)}>
-          <Plus className="size-5" /> Add food
-        </Button>
-        <Button size="lg" onClick={() => setPhoto(true)}>
-          <Camera className="size-5" /> Snap a meal
-        </Button>
+      <div className="mt-3">
+        <MacroRings totals={totals} targets={targets} maintenance={maintenance} />
       </div>
 
       <SectionTitle
@@ -116,7 +111,9 @@ export default function FuelPage() {
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5 text-base">
                     <span className="truncate">{l.name}</span>
-                    {l.source === "photo" && <Sparkles className="size-3.5 shrink-0 text-ice" aria-label="From photo" />}
+                    {(l.source === "photo" || l.source === "ai") && (
+                      <Sparkles className="size-3.5 shrink-0 text-ice" aria-label="AI estimate" />
+                    )}
                   </span>
                   <span className="text-xs text-fog">
                     {l.servings !== 1 && `${l.servings}× · `}
@@ -135,6 +132,13 @@ export default function FuelPage() {
         </div>
       )}
 
+      {source === "goal" && (
+        <>
+          <SectionTitle>Goal</SectionTitle>
+          <GoalCard targets={targets} />
+        </>
+      )}
+
       <SectionTitle>Bodyweight</SectionTitle>
       <BodyweightCard date={date} />
 
@@ -150,7 +154,7 @@ export default function FuelPage() {
       {weekLogs && <WeeklySummary logs={weekLogs} endDate={date} targets={targets} />}
 
       <AddFoodSheet open={adding} onClose={() => setAdding(false)} date={date} />
-      <PhotoMacrosSheet open={photo} onClose={() => setPhoto(false)} date={date} />
+      {meal && <PhotoMacrosSheet key={meal.key} open onClose={() => setMeal(null)} date={date} start={meal.start} />}
       <EditLogSheet log={editing} onClose={() => setEditing(null)} />
     </Page>
   );
@@ -179,7 +183,7 @@ function EditLogSheet({ log, onClose }: { log: FoodLog | null; onClose: () => vo
       open
       onClose={onClose}
       title={log.name}
-      description={log.source === "photo" && log.kcalRange ? `Photo estimate: ${log.kcalRange[0]}–${log.kcalRange[1]} kcal` : undefined}
+      description={log.kcalRange ? `AI estimate: ${log.kcalRange[0]}–${log.kcalRange[1]} kcal` : undefined}
       footer={
         <div className="flex gap-2">
           <Button

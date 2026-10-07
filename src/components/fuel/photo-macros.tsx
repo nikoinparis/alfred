@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { Camera, ImagePlus, Plus, Sparkles, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/components/providers/app-provider";
 import { Button } from "@/components/ui/button";
 import { NumberField, TextInput } from "@/components/ui/controls";
@@ -18,9 +18,16 @@ import { cn } from "@/lib/cn";
 import { MacroLine } from "./add-food-sheet";
 
 type Item = MealEstimate["items"][number] & { key: string };
-interface Photo {
+export interface Photo {
   base64: string;
   dataUrl: string;
+}
+
+/** How the sheet opens: with a photo to describe, or with a description to estimate straight away. */
+export interface MealStart {
+  photo?: Photo;
+  note?: string;
+  auto?: boolean;
 }
 type Stage =
   | { kind: "compose" }
@@ -34,12 +41,12 @@ const EXAMPLES = [
   "2 eggs fried in butter",
 ];
 
-export function PhotoMacrosSheet({ open, onClose, date }: { open: boolean; onClose: () => void; date: string }) {
+export function PhotoMacrosSheet({ open, onClose, date, start }: { open: boolean; onClose: () => void; date: string; start?: MealStart }) {
   const { db, mode, ownerVerified } = useApp();
   const toast = useToast();
-  const [stage, setStage] = useState<Stage>({ kind: "compose" });
-  const [photo, setPhoto] = useState<Photo | null>(null);
-  const [note, setNote] = useState("");
+  const [stage, setStage] = useState<Stage>(start?.auto ? { kind: "analyzing" } : { kind: "compose" });
+  const [photo, setPhoto] = useState<Photo | null>(start?.photo ?? null);
+  const [note, setNote] = useState(start?.note ?? "");
   const [refine, setRefine] = useState("");
   const camRef = useRef<HTMLInputElement>(null);
   const libRef = useRef<HTMLInputElement>(null);
@@ -64,11 +71,11 @@ export function PhotoMacrosSheet({ open, onClose, date }: { open: boolean; onClo
     }
   };
 
-  const estimate = async (description: string) => {
-    setStage({ kind: "analyzing" });
+  /** Ask the model (or, in demo mode, return a sample). Callers set the "analyzing" stage first. */
+  const runEstimate = async (description: string, img: Photo | null) => {
     if (sample) {
-      await new Promise((r) => setTimeout(r, 1600));
-      setStage(toDraft(DEMO_ESTIMATE, true));
+      await new Promise((r) => setTimeout(r, 1400));
+      setStage(toDraft(img ? DEMO_ESTIMATE : demoFromText(description), true));
       return;
     }
     try {
@@ -76,7 +83,7 @@ export function PhotoMacrosSheet({ open, onClose, date }: { open: boolean; onClo
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          ...(photo ? { image: photo.base64, mediaType: "image/jpeg" } : {}),
+          ...(img ? { image: img.base64, mediaType: "image/jpeg" } : {}),
           note: description.trim() || undefined,
         }),
       });
@@ -87,9 +94,23 @@ export function PhotoMacrosSheet({ open, onClose, date }: { open: boolean; onClo
       }
       setStage(toDraft(data.estimate, false));
     } catch {
-      setStage({ kind: "error", message: "You're offline. Estimates need a connection; log it manually for now." });
+      setStage({ kind: "error", message: "You're offline. Estimates need a connection; log it from My foods for now." });
     }
   };
+
+  const estimate = (description: string) => {
+    setStage({ kind: "analyzing" });
+    return runEstimate(description, photo);
+  };
+
+  // Opened from the Fuel "What did you eat?" box: estimate right away.
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!start?.auto || autoStarted.current) return;
+    autoStarted.current = true;
+    void runEstimate(start.note ?? "", start.photo ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once for the opening request
+  }, []);
 
   const save = async (s: Extract<Stage, { kind: "draft" }>) => {
     const total = s.items.reduce((a, i) => a + i.kcal, 0) || 1;
@@ -104,7 +125,7 @@ export function PhotoMacrosSheet({ open, onClose, date }: { open: boolean; onClo
       protein: Math.round(i.protein * 10) / 10,
       carbs: Math.round(i.carbs * 10) / 10,
       fat: Math.round(i.fat * 10) / 10,
-      source: "photo",
+      source: photo ? "photo" : "ai",
       confidence: i.confidence,
       kcalRange: [Math.round((s.low * i.kcal) / total), Math.round((s.high * i.kcal) / total)],
     }));
@@ -125,7 +146,7 @@ export function PhotoMacrosSheet({ open, onClose, date }: { open: boolean; onClo
       onClose={close}
       size="lg"
       closeLabel="Cancel"
-      title="Log a meal"
+      title={photo ? "Snap a meal" : "Describe a meal"}
       footer={
         stage.kind === "compose" ? (
           <Button variant="primary" size="lg" className="w-full" disabled={!canEstimate} onClick={() => estimate(note)}>
@@ -276,6 +297,23 @@ export function PhotoMacrosSheet({ open, onClose, date }: { open: boolean; onClo
       )}
     </Sheet>
   );
+}
+
+/** Demo-mode stand-in for a text estimate, so the flow can be tried without an API key. */
+function demoFromText(text: string): MealEstimate {
+  const name = text.trim()
+    ? text
+        .trim()
+        .replace(/^./, (c) => c.toUpperCase())
+        .slice(0, 60)
+    : "Your meal";
+  return {
+    items: [{ name, portion: "1 typical Indonesian serving", grams: 250, kcal: 450, protein: 20, carbs: 52, fat: 17, confidence: 0.5 }],
+    kcalLow: 350,
+    kcalHigh: 560,
+    confidence: 0.5,
+    notes: "Sample estimate (demo). With AI unlocked, Claude sizes this to a typical Indonesian portion.",
+  };
 }
 
 function toDraft(e: MealEstimate, demo: boolean): Stage {

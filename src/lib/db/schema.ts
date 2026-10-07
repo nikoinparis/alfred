@@ -46,7 +46,7 @@ export interface SavedMeal {
   lastUsed?: number;
 }
 
-export type FoodSource = "manual" | "food" | "meal" | "photo";
+export type FoodSource = "manual" | "food" | "meal" | "photo" | "ai";
 
 export interface FoodLog {
   id: string;

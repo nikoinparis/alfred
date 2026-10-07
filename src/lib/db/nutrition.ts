@@ -1,4 +1,4 @@
-import { computeTargets, type MacroTargets } from "@/lib/domain/nutrition";
+import { computeTargets, tdee, type MacroTargets } from "@/lib/domain/nutrition";
 import { uid } from "@/lib/id";
 import type { AlfredDB, Food, FoodLog, SavedMeal, Settings } from "./schema";
 
@@ -20,23 +20,37 @@ export function sumLogs(logs: Pick<FoodLog, "kcal" | "protein" | "carbs" | "fat"
   });
 }
 
+export interface ResolvedTargets {
+  targets: MacroTargets;
+  source: "manual" | "goal" | "fallback";
+  /** Calories that hold your weight (TDEE), when stats are known. */
+  maintenance: number | null;
+  /** Calories on top of maintenance (negative on a cut). */
+  surplus: number | null;
+}
+
 /** Targets in priority order: manual override → goal engine (+ accepted check-in tweaks) → sensible fallback. */
-export function resolveTargets(
-  settings: Settings,
-  latestWeightKg: number | null,
-): { targets: MacroTargets; source: "manual" | "goal" | "fallback" } {
-  if (settings.macroOverride) return { targets: settings.macroOverride, source: "manual" };
-  if (settings.profile && settings.goal) {
-    const profile = { ...settings.profile, weightKg: latestWeightKg ?? settings.profile.weightKg };
+export function resolveTargets(settings: Settings, latestWeightKg: number | null): ResolvedTargets {
+  const profile = settings.profile ? { ...settings.profile, weightKg: latestWeightKg ?? settings.profile.weightKg } : null;
+  const maintenance = profile ? Math.round(tdee(profile) / 10) * 10 : null;
+  const withSurplus = (targets: MacroTargets, source: ResolvedTargets["source"]): ResolvedTargets => ({
+    targets,
+    source,
+    maintenance,
+    surplus: maintenance === null ? null : targets.kcal - maintenance,
+  });
+
+  if (settings.macroOverride) return withSurplus(settings.macroOverride, "manual");
+  if (profile && settings.goal) {
     const t = computeTargets(profile, settings.goal).targets;
-    if (!settings.kcalAdjustment) return { targets: t, source: "goal" };
+    if (!settings.kcalAdjustment) return withSurplus(t, "goal");
     // Check-in adjustments move carbs (and fat a little) and keep protein fixed.
     const kcal = t.kcal + settings.kcalAdjustment;
     const carbs = Math.max(0, Math.round(t.carbs + (settings.kcalAdjustment * 0.75) / 4));
     const fat = Math.max(0, Math.round(t.fat + (settings.kcalAdjustment * 0.25) / 9));
-    return { targets: { kcal, protein: t.protein, carbs, fat }, source: "goal" };
+    return withSurplus({ kcal, protein: t.protein, carbs, fat }, "goal");
   }
-  return { targets: FALLBACK_TARGETS, source: "fallback" };
+  return { targets: FALLBACK_TARGETS, source: "fallback", maintenance: null, surplus: null };
 }
 
 export function scaleFood(food: Pick<Food, "kcal" | "protein" | "carbs" | "fat">, servings: number) {

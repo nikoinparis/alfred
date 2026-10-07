@@ -13,7 +13,7 @@ See [ROADMAP.md](ROADMAP.md) for status and what's next.
 | **Today** | Pick the day type in one tap (the suggested one is pre-selected), see each exercise with its next weight, then log set by set: per-set weight and reps, warm-up/working/failure/drop kinds, **Same again** (one tap repeats your last set), a quick effort (RPE) prompt that feeds the suggestions, warm-up ramp, plate calculator, PR toasts, swap-for-today. Finish to get a summary and a shareable card. A weekly nudge reminds you to back up. |
 | **Plan** | The week as a timeline: done, planned, skipped and suggested days (tap the dashed check to accept). Tap any day to preview day types and see exactly which muscles each day and exercise trains. Weekly review: push:pull and quad:ham balance, streak. |
 | **Body** | Hard sets per muscle this week vs target on an anatomical figure, front and back side by side (volume colours or pastel anatomy colours). Tap a muscle for what hit it and what's left. |
-| **Fuel** | Calories and macros vs targets, food search with favourites (Indonesian staples pre-loaded), saved meals, **Snap a meal** (photo first, then say what it is; refine and re-estimate), bodyweight trend, 7-day summary. Goal engine and weekly check-in under Goal & targets. |
+| **Fuel** | Calories and macros vs targets, food search with favourites (Indonesian staples pre-loaded), saved meals, a **What did you eat?** box (type "kebab" and Claude estimates a typical Indonesian portion, or tap the camera to snap it), maintenance + surplus calorie breakdown, bodyweight trend, 7-day summary. Goal engine and weekly check-in under Goal & targets. |
 | **History** | Every workout, plus per-exercise estimated-1RM and volume charts. |
 
 Units: kg by default, switch to lb any time in Settings. Each set keeps the unit it was logged in.
@@ -79,14 +79,13 @@ The owner profile defaults to 179 cm (5'10.5"), 64.6 kg, age 22, with the **Nigh
 
 ## Weekly planner rules
 
-The suggestion engine is a pure function in [`src/lib/domain/planner.ts`](src/lib/domain/planner.ts), tested in `planner.test.ts`.
+The planner in [`src/lib/domain/planner.ts`](src/lib/domain/planner.ts) (tested in `planner.test.ts`) fits each Monday–Sunday week:
 
-1. **Two blocks:** Push/Pull/Legs (any order), then Upper/Lower (either order). Finishing a block earns a rest day, then the other block starts. Weeks start Monday.
-2. **Follow reality, not the calendar.** Suggestions continue from what you actually trained: start with Legs and you get Push, Pull, Rest; start with Lower and Upper is next (no rest in between). Doing a day from the other block starts that block.
-3. **Missed or skipped days count as rest.** They clear a pending rest, but days you still owe in the current block stay owed.
-4. **Max 3 training days in a row** (setting), including days you've already planned ahead.
-5. **No back-to-back overlap.** Upper overlaps Push and Pull, Lower overlaps Legs. If the next pick would clash with yesterday or a planned tomorrow, another day from the block is chosen instead (or rest if none fits).
-6. **Ghost days.** Suggestions are dashed "ghost" cards. Accept one (or all) to plan it, tap to override with any day type, or skip it. Everything after re-plans instantly.
+1. **Ideal week:** Push, Pull, Legs, rest, Upper, Lower, rest. Every Monday starts fresh.
+2. **Pairs:** Push and Pull go back to back; Legs goes before or after that pair (Push → Pull → Legs, or Legs → Push → Pull). Upper and Lower go back to back in either order. A rest day separates the two blocks.
+3. **Short weeks:** starting mid-week, it fits the most valuable sessions before Sunday: Push/Pull/Legs first, then Upper ahead of Lower. Thursday → Push, Pull, Legs, rest. Wednesday → Push, Pull, Legs, rest, Upper.
+4. **Real life:** days you've logged or planned are fixed and everything else is planned around them. A missed day doesn't skip the owed session. Never more than 3 training days in a row.
+5. **How it decides:** it scores every possible arrangement of the open days (at most 7, so it's an exhaustive search) by sessions fitted, rules kept, and training sooner rather than later, and picks the best.
 
 ## Progression rules
 

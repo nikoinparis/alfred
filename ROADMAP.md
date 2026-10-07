@@ -1,5 +1,10 @@
 # Roadmap
 
+## Round 4 (8 Oct 2026)
+
+- **Planner** now fits each Mon–Sun week: Push→Pull pair with Legs before or after, Upper/Lower pair either way, rest between blocks; short weeks keep Push/Pull/Legs and prioritise Upper over Lower.
+- **Fuel:** one "What did you eat?" box: type a dish (Indonesian portions assumed) for an instant AI estimate, or tap the camera; "My foods" for your saved library. The calorie ring now shows maintenance (to hold weight) plus the surplus to grow.
+
 ## Round 3 (7 Oct 2026)
 
 - **Nightwing goal** built in: your stats (179 cm, 64.6 kg, 22) and a lean bulk to 72 kg, then maintenance. Goal card on Fuel, ETA, switch-to-maintenance prompt, V-taper muscle targets.

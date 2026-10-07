@@ -7,7 +7,7 @@ import { FALLBACK_TARGETS, logFood, logMeal, resolveTargets, sumLogs } from "./n
 
 describe("resolveTargets", () => {
   it("falls back when no goal is set", () => {
-    expect(resolveTargets(DEFAULT_SETTINGS, null)).toEqual({ targets: FALLBACK_TARGETS, source: "fallback" });
+    expect(resolveTargets(DEFAULT_SETTINGS, null)).toMatchObject({ targets: FALLBACK_TARGETS, source: "fallback", maintenance: null });
   });
 
   it("prefers a manual override", () => {
@@ -26,6 +26,18 @@ describe("resolveTargets", () => {
     expect(b.kcal).toBe(a.kcal - 200);
     expect(b.protein).toBe(a.protein);
     expect(b.carbs).toBeLessThan(a.carbs);
+  });
+
+  it("splits a bulk into maintenance plus surplus", () => {
+    const s = {
+      ...DEFAULT_SETTINGS,
+      profile: { sex: "male" as const, age: 22, heightCm: 179, weightKg: 64.6, activity: "moderate" as const },
+      goal: { preset: "nightwing" as const, phase: "bulk" as const, rateKgPerWeek: 0.25, targetWeightKg: 72 },
+    };
+    const r = resolveTargets(s, 64.6);
+    expect(r.maintenance).toBe(2570);
+    expect(r.surplus).toBe(r.targets.kcal - 2570);
+    expect(r.surplus).toBeGreaterThan(250);
   });
 });
 

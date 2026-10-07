@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { format } from "date-fns";
-import { ChevronLeft, ChevronRight, Sparkles, Target, Trash2 } from "lucide-react";
+import { ChevronRight, Sparkles, Target, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useApp, useSettings } from "@/components/providers/app-provider";
 import { AddFoodSheet, MacroLine } from "@/components/fuel/add-food-sheet";
@@ -13,6 +13,7 @@ import { MacroRings } from "@/components/fuel/macro-rings";
 import { PhotoMacrosSheet, type MealStart } from "@/components/fuel/photo-macros";
 import { FoodComposer } from "@/components/fuel/food-composer";
 import { WeeklySummary } from "@/components/fuel/weekly-summary";
+import { WeekStrip } from "@/components/fuel/week-strip";
 import { Page, SectionTitle } from "@/components/shell/page";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { NumberField } from "@/components/ui/controls";
@@ -21,7 +22,7 @@ import { useToast } from "@/components/ui/toast";
 import { useLatestBodyweight, useToday } from "@/lib/db/hooks";
 import { resolveTargets, sumLogs } from "@/lib/db/nutrition";
 import type { FoodLog } from "@/lib/db/schema";
-import { addDays, parseISODate } from "@/lib/domain/dates";
+import { addDays, daysBetween, parseISODate } from "@/lib/domain/dates";
 import { cn } from "@/lib/cn";
 
 export default function FuelPage() {
@@ -29,12 +30,13 @@ export default function FuelPage() {
   const settings = useSettings();
   const t = useToday();
   const bw = useLatestBodyweight();
-  const [offset, setOffset] = useState(0);
+  const [picked, setPicked] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [meal, setMeal] = useState<{ key: number; start: MealStart } | null>(null);
   const openMeal = (start: MealStart) => setMeal((m) => ({ key: (m?.key ?? 0) + 1, start }));
   const [editing, setEditing] = useState<FoodLog | null>(null);
-  const date = addDays(t, offset);
+  const date = picked ?? t;
+  const offset = daysBetween(t, date);
 
   const dayLogs = useLiveQuery(() => db.foodLogs.where("date").equals(date).sortBy("createdAt"), [db, date]);
   const weekLogs = useLiveQuery(() => db.foodLogs.where("date").between(addDays(date, -6), date, true, true).toArray(), [db, date]);
@@ -44,28 +46,7 @@ export default function FuelPage() {
 
   return (
     <Page title="Fuel" subtitle={format(parseISODate(date), "EEEE d MMMM")}>
-      <div className="flex items-center gap-2">
-        <Button size="icon" variant="ghost" onClick={() => setOffset((o) => o - 1)} aria-label="Previous day">
-          <ChevronLeft className="size-5" />
-        </Button>
-        <button
-          type="button"
-          disabled={offset === 0}
-          onClick={() => setOffset(0)}
-          className={cn("flex-1 text-center text-sm", offset === 0 ? "text-fog" : "text-signal")}
-        >
-          {offset === 0 ? label : `${label} · back to today`}
-        </button>
-        <Button
-          size="icon"
-          variant="ghost"
-          onClick={() => setOffset((o) => Math.min(0, o + 1))}
-          disabled={offset === 0}
-          aria-label="Next day"
-        >
-          <ChevronRight className="size-5" />
-        </Button>
-      </div>
+      <WeekStrip date={date} today={t} target={targets.kcal} onSelect={(d) => setPicked(d === t ? null : d)} />
 
       {source === "fallback" && (
         <Link href="/fuel/goals" className="panel mt-3 flex items-center gap-3 border-signal/40 p-3.5 hover:border-signal">

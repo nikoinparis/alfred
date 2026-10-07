@@ -17,25 +17,21 @@ export function MacroRings({ totals, targets, maintenance }: { totals: Totals; t
   // The tick sits on the ring at maintenance (rotated with the SVG, so 0 = top).
   const tick = mFrac !== null ? { x: 90 + R * Math.cos(2 * Math.PI * mFrac), y: 90 + R * Math.sin(2 * Math.PI * mFrac) } : null;
 
-  let big: number;
-  let label: string;
-  let sub: string;
+  // Big number is always what you ate; the line under it says where that leaves you.
+  let status: string;
+  let tone = "text-fog";
   if (over) {
-    big = eaten - targets.kcal;
-    label = "kcal over target";
-    sub = `${eaten} / ${targets.kcal}`;
+    status = `Target hit, +${eaten - targets.kcal} over`;
+    tone = bulking && eaten <= targets.kcal * 1.15 ? "text-signal" : "text-ochre";
+  } else if (eaten >= targets.kcal) {
+    status = "Target hit";
+    tone = "text-signal";
   } else if (bulking && eaten < maintenance) {
-    big = maintenance - eaten;
-    label = "to maintain";
-    sub = `then +${targets.kcal - maintenance} to grow`;
+    status = `${maintenance - eaten} to maintain, then +${targets.kcal - maintenance}`;
   } else if (bulking) {
-    big = targets.kcal - eaten;
-    label = "more to grow";
-    sub = "Maintenance covered";
+    status = `Maintenance covered, ${targets.kcal - eaten} more to grow`;
   } else {
-    big = targets.kcal - eaten;
-    label = "kcal left";
-    sub = `${eaten} / ${targets.kcal}`;
+    status = `${targets.kcal - eaten} left`;
   }
 
   return (
@@ -61,7 +57,7 @@ export function MacroRings({ totals, targets, maintenance }: { totals: Totals; t
             cy="90"
             r={R}
             fill="none"
-            stroke={over ? "var(--ochre)" : "var(--signal)"}
+            stroke={tone === "text-ochre" ? "var(--ochre)" : "var(--signal)"}
             strokeWidth="10"
             strokeLinecap="round"
             strokeDasharray={C}
@@ -75,9 +71,9 @@ export function MacroRings({ totals, targets, maintenance }: { totals: Totals; t
           role="img"
           aria-label={`${eaten} of ${targets.kcal} kcal eaten`}
         >
-          <p className="readout text-[44px] font-semibold">{Math.max(0, big)}</p>
-          <p className="text-xs text-fog-2">{label}</p>
-          <p className="mt-1 max-w-[120px] text-[11px] leading-tight text-fog">{sub}</p>
+          <p className="readout text-[44px] font-semibold">{eaten}</p>
+          <p className="text-xs text-fog-2">of {targets.kcal} kcal</p>
+          <p className={cn("mt-1 max-w-[124px] text-[11px] font-semibold leading-tight", tone)}>{status}</p>
         </div>
       </div>
       <div className="grid gap-4">

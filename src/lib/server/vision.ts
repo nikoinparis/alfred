@@ -82,8 +82,44 @@ async function estimateWithClaude(input: VisionInput): Promise<{ estimate: MealE
   }
 }
 
+/** Gemini's busy/overloaded answers: worth retrying, or trying another model. */
+class GeminiBusy extends VisionError {}
+
+/**
+ * Try the configured model, then the fallbacks. Free-tier Gemini often answers 503 ("overloaded")
+ * for a few seconds, so each model gets a quick retry before moving on.
+ */
 async function estimateWithGemini(input: VisionInput): Promise<{ estimate: MealEstimate; model: string }> {
-  const model = process.env.GEMINI_VISION_MODEL || "gemini-2.5-flash";
+  const primary = process.env.GEMINI_VISION_MODEL || "gemini-flash-latest";
+  const fallbacks = (process.env.GEMINI_FALLBACK_MODELS ?? "gemini-flash-latest,gemini-flash-lite-latest")
+    .split(",")
+    .map((m) => m.trim())
+    .filter(Boolean);
+  const models = [...new Set([primary, ...fallbacks])];
+  const deadline = Date.now() + 50_000;
+  let last: unknown;
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (Date.now() > deadline - 8_000) break;
+      try {
+        return await callGemini(input, model, Math.min(25_000, deadline - Date.now()));
+      } catch (e) {
+        last = e;
+        if (e instanceof GeminiBusy) {
+          await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)));
+          continue;
+        }
+        // A retired or unknown model: move on to the next one.
+        if (e instanceof VisionError && e.status === 404) break;
+        throw e;
+      }
+    }
+  }
+  if (last instanceof GeminiBusy) throw new VisionError("Gemini is busy right now. Try again in a minute, or log from My foods.", 503);
+  throw last;
+}
+
+async function callGemini(input: VisionInput, model: string, timeoutMs: number): Promise<{ estimate: MealEstimate; model: string }> {
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
@@ -102,11 +138,16 @@ async function estimateWithGemini(input: VisionInput): Promise<{ estimate: MealE
       ],
       generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
     }),
-    signal: AbortSignal.timeout(45_000),
+    signal: AbortSignal.timeout(timeoutMs),
+  }).catch((e: unknown) => {
+    if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) throw new GeminiBusy("Gemini timed out.", 503);
+    throw e;
   });
+  if (!res.ok) console.error(`Gemini ${model} ${res.status}: ${(await res.clone().text()).slice(0, 300)}`);
   if (res.status === 429) throw new VisionError("Gemini free-tier limit hit. Wait a minute and retry.", 429);
+  if (res.status >= 500) throw new GeminiBusy(`Gemini error (${res.status}).`, 503);
   if (res.status === 404)
-    throw new VisionError(`Gemini model "${model}" isn't available. Set GEMINI_VISION_MODEL to a current Flash model.`, 502);
+    throw new VisionError(`Gemini model "${model}" isn't available. Set GEMINI_VISION_MODEL to a current Flash model.`, 404);
   if (res.status === 403) throw new VisionError("Gemini refused this key. Check GEMINI_API_KEY in Vercel.", 502);
   if (!res.ok) throw new VisionError(`Gemini error (${res.status}).`, 502);
   const body = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };

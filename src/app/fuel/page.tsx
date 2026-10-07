@@ -80,6 +80,7 @@ export default function FuelPage() {
 
       <div className="mt-3">
         <FoodComposer
+          date={date}
           onDescribe={(text) => openMeal({ note: text, auto: true })}
           onPhoto={(p) => openMeal({ photo: p })}
           onBrowse={() => setAdding(true)}

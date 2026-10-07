@@ -7,10 +7,10 @@ import { Camera, ImagePlus, Plus, Sparkles, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/components/providers/app-provider";
 import { Button } from "@/components/ui/button";
-import { NumberField, TextInput } from "@/components/ui/controls";
+import { NumberField, TextInput, Toggle } from "@/components/ui/controls";
 import { Sheet } from "@/components/ui/sheet";
 import { useToast } from "@/components/ui/toast";
-import type { FoodLog } from "@/lib/db/schema";
+import type { Food, FoodLog } from "@/lib/db/schema";
 import { compressImage } from "@/lib/image";
 import { uid } from "@/lib/id";
 import { DEMO_ESTIMATE, type MealEstimate } from "@/lib/vision-schema";
@@ -48,6 +48,7 @@ export function PhotoMacrosSheet({ open, onClose, date, start }: { open: boolean
   const [photo, setPhoto] = useState<Photo | null>(start?.photo ?? null);
   const [note, setNote] = useState(start?.note ?? "");
   const [refine, setRefine] = useState("");
+  const [remember, setRemember] = useState(false);
   const camRef = useRef<HTMLInputElement>(null);
   const libRef = useRef<HTMLInputElement>(null);
   const sample = mode === "demo" || ownerVerified === false;
@@ -115,6 +116,21 @@ export function PhotoMacrosSheet({ open, onClose, date, start }: { open: boolean
   const save = async (s: Extract<Stage, { kind: "draft" }>) => {
     const total = s.items.reduce((a, i) => a + i.kcal, 0) || 1;
     const now = Date.now();
+    // Remembered items become saved foods, so logging them again is instant and free.
+    const foods: Food[] = remember
+      ? s.items.map((i) => ({
+          id: uid("food"),
+          name: i.name,
+          serving: i.portion || "1 serving",
+          kcal: Math.round(i.kcal),
+          protein: Math.round(i.protein * 10) / 10,
+          carbs: Math.round(i.carbs * 10) / 10,
+          fat: Math.round(i.fat * 10) / 10,
+          favorite: true,
+          lastUsed: now,
+          tags: ["ai"],
+        }))
+      : [];
     const logs: FoodLog[] = s.items.map((i, n) => ({
       id: uid("fl"),
       date,
@@ -128,10 +144,14 @@ export function PhotoMacrosSheet({ open, onClose, date, start }: { open: boolean
       source: photo ? "photo" : "ai",
       confidence: i.confidence,
       kcalRange: [Math.round((s.low * i.kcal) / total), Math.round((s.high * i.kcal) / total)],
+      foodId: foods[n]?.id,
     }));
-    await db.foodLogs.bulkPut(logs);
+    await db.transaction("rw", [db.foodLogs, db.foods], async () => {
+      await db.foodLogs.bulkPut(logs);
+      if (foods.length) await db.foods.bulkPut(foods);
+    });
     toast({
-      message: `Logged ${logs.length} item${logs.length === 1 ? "" : "s"}.`,
+      message: `Logged ${logs.length} item${logs.length === 1 ? "" : "s"}${foods.length ? " and saved to My foods" : ""}.`,
       action: { label: "Undo", onClick: () => db.foodLogs.bulkDelete(logs.map((l) => l.id)) },
     });
     close();
@@ -153,9 +173,18 @@ export function PhotoMacrosSheet({ open, onClose, date, start }: { open: boolean
             <Sparkles className="size-5" /> Estimate macros
           </Button>
         ) : draft ? (
-          <Button variant="primary" size="lg" className="w-full" disabled={!draft.items.length} onClick={() => save(draft)}>
-            Save {Math.round(draft.items.reduce((a, i) => a + i.kcal, 0))} kcal
-          </Button>
+          <div className="grid gap-3">
+            <div className="flex items-center justify-between gap-3 px-1">
+              <span className="text-sm text-fog-2">
+                <span className="block text-bone">Save to My foods</span>
+                Next time, type its name to log it without AI.
+              </span>
+              <Toggle label="Save to My foods" checked={remember} onChange={setRemember} />
+            </div>
+            <Button variant="primary" size="lg" className="w-full" disabled={!draft.items.length} onClick={() => save(draft)}>
+              Save {Math.round(draft.items.reduce((a, i) => a + i.kcal, 0))} kcal
+            </Button>
+          </div>
         ) : undefined
       }
     >

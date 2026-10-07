@@ -2,6 +2,8 @@
 
 ## Round 4 (8 Oct 2026)
 
+- **Quick add without AI:** usual foods are one-tap chips; typing a saved food with an amount ("2 kellogs", "half a bowl of cereal and 2 telur rebus") logs it locally; AI estimates and manual entries can be saved to My foods with a serving size.
+
 - **Planner** now fits each Mon–Sun week: Push→Pull pair with Legs before or after, Upper/Lower pair either way, rest between blocks; short weeks keep Push/Pull/Legs and prioritise Upper over Lower.
 - **Fuel:** one "What did you eat?" box: type a dish (Indonesian portions assumed) for an instant AI estimate, or tap the camera; "My foods" for your saved library. The calorie ring now shows maintenance (to hold weight) plus the surplus to grow.
 

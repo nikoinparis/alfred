@@ -207,6 +207,7 @@ function ManualEntry({ date, onDone }: { date: string; onDone: () => void }) {
   const [c, setC] = useState<number | null>(null);
   const [f, setF] = useState<number | null>(null);
   const [save, setSave] = useState(false);
+  const [serving, setServing] = useState("");
   const fromMacros = Math.round((p ?? 0) * 4 + (c ?? 0) * 4 + (f ?? 0) * 9);
 
   return (
@@ -232,6 +233,11 @@ function ManualEntry({ date, onDone }: { date: string; onDone: () => void }) {
         <span className="text-sm text-fog-2">Save to my foods</span>
         <Toggle label="Save as a food" checked={save} onChange={setSave} />
       </div>
+      {save && (
+        <Field label="One serving is" hint="Type its name in Fuel later (e.g. “2 kellogs”) to log it without AI.">
+          <TextInput value={serving} onChange={(e) => setServing(e.target.value)} placeholder="e.g. 1 bowl, 40 g + 200 ml milk" />
+        </Field>
+      )}
       <Button
         variant="primary"
         size="lg"
@@ -248,7 +254,7 @@ function ManualEntry({ date, onDone }: { date: string; onDone: () => void }) {
           let foodId: string | undefined;
           if (save) {
             foodId = uid("food");
-            await db.foods.put({ id: foodId, serving: "1 serving", favorite: true, lastUsed: Date.now(), ...entry });
+            await db.foods.put({ id: foodId, serving: serving.trim() || "1 serving", favorite: true, lastUsed: Date.now(), ...entry });
           }
           await logManual(db, date, { ...entry, foodId });
           toast({ message: `Logged ${entry.name}.` });

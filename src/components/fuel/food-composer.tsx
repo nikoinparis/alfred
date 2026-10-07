@@ -1,36 +1,67 @@
 "use client";
 
-import { ArrowUp, BookOpen, Camera } from "lucide-react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { ArrowUp, BookOpen, Camera, Plus } from "lucide-react";
 import { useRef, useState } from "react";
+import { useApp } from "@/components/providers/app-provider";
 import { useToast } from "@/components/ui/toast";
+import { logFood } from "@/lib/db/nutrition";
+import type { Food, FoodLog } from "@/lib/db/schema";
+import { matchSavedFoods } from "@/lib/domain/food-match";
 import { compressImage } from "@/lib/image";
 import { cn } from "@/lib/cn";
 import type { Photo } from "./photo-macros";
 
-const IDEAS = ["Kebab", "Nasi goreng", "2 telur ceplok", "Ayam geprek + nasi", "Indomie goreng + telur"];
+const USUALS = 6;
+
+function amount(servings: number) {
+  return servings === 1 ? "" : `${servings} × `;
+}
 
 /**
- * One place to log food: type what you ate and Claude estimates it (Indonesian portions),
- * tap the camera to snap it, or open your saved foods for exact numbers.
+ * One place to log food. Your usual foods are one tap; typing a saved food ("2 kellogs") logs it
+ * straight from My foods with no AI call. Anything else goes to Claude (Indonesian portions), and
+ * the camera snaps a photo.
  */
 export function FoodComposer({
+  date,
   onDescribe,
   onPhoto,
   onBrowse,
 }: {
+  date: string;
   onDescribe: (text: string) => void;
   onPhoto: (photo: Photo) => void;
   onBrowse: () => void;
 }) {
+  const { db } = useApp();
   const toast = useToast();
   const [text, setText] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const ready = text.trim().length > 1;
+  const foods = useLiveQuery(() => db.foods.toArray(), [db]);
+  const usuals = (foods ?? [])
+    .filter((f) => f.lastUsed || f.favorite)
+    .sort((a, b) => (b.lastUsed ?? 0) - (a.lastUsed ?? 0) || Number(b.favorite) - Number(a.favorite))
+    .slice(0, USUALS);
+
+  const quickLog = async (items: { food: Food; servings: number }[]) => {
+    const logs: FoodLog[] = [];
+    for (const { food, servings } of items) logs.push(await logFood(db, date, food, servings));
+    const kcal = logs.reduce((a, l) => a + l.kcal, 0);
+    toast({
+      message: `Logged ${items.map((i) => amount(i.servings) + i.food.name).join(", ")} (${kcal} kcal)`,
+      action: { label: "Undo", onClick: () => db.foodLogs.bulkDelete(logs.map((l) => l.id)) },
+    });
+  };
 
   const submit = () => {
     if (!ready) return;
-    onDescribe(text.trim());
+    const said = text.trim();
     setText("");
+    const matched = matchSavedFoods(said, foods ?? []);
+    if (matched) void quickLog(matched);
+    else onDescribe(said);
   };
 
   return (
@@ -95,19 +126,22 @@ export function FoodComposer({
         >
           <BookOpen className="size-4" /> My foods
         </button>
-        {IDEAS.map((idea) => (
+        {usuals.map((f) => (
           <button
-            key={idea}
+            key={f.id}
             type="button"
-            onClick={() => onDescribe(idea)}
-            className="h-9 shrink-0 rounded-full bg-white/[0.06] px-3 text-sm text-fog-2 active:scale-[0.97]"
+            onClick={() => quickLog([{ food: f, servings: 1 }])}
+            className="flex h-9 max-w-[11rem] shrink-0 items-center gap-1 rounded-full bg-white/[0.06] pl-2.5 pr-3 text-sm text-fog-2 active:scale-[0.97]"
+            aria-label={`Log 1 serving of ${f.name}`}
           >
-            {idea}
+            <Plus className="size-3.5 shrink-0 text-signal" />
+            <span className="truncate">{f.name}</span>
           </button>
         ))}
       </div>
       <p className="mt-2 px-1 text-xs text-fog">
-        Type it and Claude estimates a typical Indonesian portion. Add a photo for a sharper read.
+        Tap a usual to log one serving. Type a saved food (&ldquo;2 kellogs&rdquo;) and it logs instantly, no AI. Anything else, Claude
+        estimates a typical Indonesian portion.
       </p>
     </section>
   );

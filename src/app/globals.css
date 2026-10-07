@@ -2,30 +2,33 @@
 
 /*
  * Alfred design tokens.
- * Gotham at night: cool blue-black graphite, gunmetal surfaces, one muted signal-amber accent.
- * Heat colours for training volume are desaturated so they sit inside the palette.
+ * Gotham at night: blue-black base, grouped surfaces a step lighter, one signal-amber accent.
+ * Structure follows Apple's HIG for dark interfaces: content sits on grouped cells,
+ * controls float on translucent material, secondary text stays readable (≥4.5:1).
  */
 :root {
-  --night: #090b0f;
-  --kevlar: #10141a;
-  --gunmetal: #171c24;
-  --gunmetal-2: #1e2530;
-  --steel: #283140;
-  --steel-2: #374254;
-  --fog: #8e98a7;
-  --fog-2: #b4bcc8;
-  --bone: #e9ecf0;
-  --signal: #e2b04a;
+  --night: #07090c;
+  --kevlar: #0e1116;
+  --gunmetal: #14181f;
+  --gunmetal-2: #1c222b;
+  --steel: #262d38;
+  --steel-2: #364050;
+  --separator: rgb(120 132 150 / 0.22);
+  --fog: #98a1ae;
+  --fog-2: #c3c9d2;
+  --bone: #eef0f3;
+  --signal: #e8b54e;
   --signal-ink: #1a1203;
-  --signal-soft: rgb(226 176 74 / 0.14);
-  --crimson: #c0473f;
-  --ochre: #cf9a38;
-  --verdigris: #3fa487;
-  --ice: #7fa6c9;
+  --signal-soft: rgb(232 181 78 / 0.14);
+  --crimson: #d0544b;
+  --ochre: #d6a03c;
+  --verdigris: #45ab8d;
+  --ice: #86acd0;
+  --material: rgb(16 19 24 / 0.72);
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --tabbar-h: 64px;
+  --tabbar-h: 76px;
   color-scheme: dark;
 }
 
@@ -36,6 +39,7 @@
   --color-gunmetal-2: var(--gunmetal-2);
   --color-steel: var(--steel);
   --color-steel-2: var(--steel-2);
+  --color-separator: var(--separator);
   --color-fog: var(--fog);
   --color-fog-2: var(--fog-2);
   --color-bone: var(--bone);
@@ -47,14 +51,31 @@
   --color-verdigris: var(--verdigris);
   --color-ice: var(--ice);
 
-  --font-sans: var(--font-plex), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-saira), var(--font-plex), ui-sans-serif, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-saira), -apple-system, BlinkMacSystemFont, sans-serif;
 
-  --radius-sheet: 18px;
+  /* Type scale modelled on iOS text styles (footnote → large title). */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 1.0625rem;
+  --text-base--line-height: 1.375rem;
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.5625rem;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.75rem;
+  --text-2xl--line-height: 2.125rem;
+  --text-3xl: 2.125rem;
+  --text-3xl--line-height: 2.5625rem;
+
+  --radius-sheet: 22px;
   --radius-panel: 14px;
   --radius-row: 10px;
 
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /* Custom rules live in layers so Tailwind utilities can always override them. */
@@ -66,10 +87,12 @@
   }
 
   body {
-    background: radial-gradient(120% 60% at 50% -10%, rgb(127 166 201 / 0.07), transparent 60%), var(--night);
+    background: radial-gradient(120% 50% at 50% -10%, rgb(134 172 208 / 0.06), transparent 60%), var(--night);
     color: var(--bone);
     font-family: var(--font-sans);
-    font-feature-settings: "ss02", "tnum";
+    font-size: 1.0625rem;
+    line-height: 1.375rem;
+    letter-spacing: -0.01em;
     min-height: 100dvh;
     overscroll-behavior-y: none;
   }
@@ -81,7 +104,7 @@
     inset: 0;
     pointer-events: none;
     z-index: 0;
-    opacity: 0.035;
+    opacity: 0.03;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
@@ -100,10 +123,15 @@
   select,
   button {
     font: inherit;
+    letter-spacing: inherit;
     color: inherit;
   }
 
-  /* Numeric inputs without spinners */
+  button,
+  a {
+    touch-action: manipulation;
+  }
+
   input[type="number"]::-webkit-outer-spin-button,
   input[type="number"]::-webkit-inner-spin-button {
     -webkit-appearance: none;
@@ -119,20 +147,53 @@
   .readout {
     font-family: var(--font-display);
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
-    line-height: 0.9;
+    letter-spacing: -0.005em;
+    line-height: 0.95;
   }
 
-  /* Hairline panel used for grouped content. */
+  /* Grouped cell surface (HIG "inset grouped" list background). */
   .panel {
-    background: linear-gradient(180deg, var(--gunmetal), var(--kevlar));
-    border: 1px solid var(--steel);
+    background: var(--gunmetal);
     border-radius: var(--radius-panel);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
+    box-shadow:
+      inset 0 0.5px 0 rgb(255 255 255 / 0.05),
+      0 0 0 0.5px rgb(255 255 255 / 0.035);
   }
 
-  .divide-steel > * + * {
-    border-top: 1px solid var(--steel);
+  /* Inset separators: start at the text, run to the trailing edge. */
+  .divide-steel > * {
+    position: relative;
+  }
+  .divide-steel > * + *::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 16px;
+    right: 0;
+    height: 0.5px;
+    background: var(--separator);
+    pointer-events: none;
+  }
+
+  /* Press feedback for tappable rows. */
+  .divide-steel > * > :is(a, button):active,
+  .pressable:active {
+    background-color: rgb(255 255 255 / 0.06);
+  }
+  .divide-steel > :first-child > :is(a, button) {
+    border-top-left-radius: var(--radius-panel);
+    border-top-right-radius: var(--radius-panel);
+  }
+  .divide-steel > :last-child > :is(a, button) {
+    border-bottom-left-radius: var(--radius-panel);
+    border-bottom-right-radius: var(--radius-panel);
+  }
+
+  /* Translucent material for floating controls (tab bar, nav bar). */
+  .material {
+    background: var(--material);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+    backdrop-filter: saturate(180%) blur(24px);
   }
 
   .no-scrollbar::-webkit-scrollbar {

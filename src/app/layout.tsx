@@ -1,18 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans, Saira_Condensed } from "next/font/google";
+import { Saira_Condensed } from "next/font/google";
 import { AppProvider } from "@/components/providers/app-provider";
 import { ServiceWorker } from "@/components/providers/service-worker";
 import { SideRail, TabBar } from "@/components/shell/nav";
 import { ToastProvider } from "@/components/ui/toast";
-import { RestTimerProvider } from "@/components/workout/rest-timer";
 import "./globals.css";
 
-const plex = IBM_Plex_Sans({
-  variable: "--font-plex",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-});
-
+// Text uses the platform UI font (SF on Apple devices) for legibility at every size.
+// Saira Condensed is reserved for numbers and the day-type hero, where the brand lives.
 const saira = Saira_Condensed({
   variable: "--font-saira",
   subsets: ["latin"],
@@ -28,7 +23,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#090b0f",
+  themeColor: "#07090c",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -36,17 +31,15 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${plex.variable} ${saira.variable} antialiased`}>
+    <html lang="en" className={`${saira.variable} antialiased`}>
       <body>
         <ToastProvider>
           <AppProvider>
-            <RestTimerProvider>
-              <div className="flex min-h-dvh">
-                <SideRail />
-                {children}
-              </div>
-              <TabBar />
-            </RestTimerProvider>
+            <div className="flex min-h-dvh">
+              <SideRail />
+              {children}
+            </div>
+            <TabBar />
           </AppProvider>
         </ToastProvider>
         <ServiceWorker />

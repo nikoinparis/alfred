@@ -8,7 +8,7 @@ import { cn } from "@/lib/cn";
 const FEATURES: [string, string][] = [
   [
     "Set-by-set logger",
-    "Per-set weight and reps, drop-set chains, rest timer, PR detection and a per-exercise progression suggestion (double progression with stall and deload detection).",
+    'Per-set weight and reps, drop-set chains, one-tap "same again", effort (RPE) ratings, PR detection and a per-exercise progression suggestion (double progression with stall and deload detection).',
   ],
   [
     "Adaptive weekly planner",
@@ -16,15 +16,15 @@ const FEATURES: [string, string][] = [
   ],
   [
     "Muscle heatmap",
-    "Hard sets per muscle per week from a data-driven exercise → muscle map (primary 1, secondary 0.5), in 2D and an interactive 3D view.",
+    "Hard sets per muscle per week from a data-driven exercise → muscle map (primary 1, secondary 0.5), on a 2D map and a rotatable anatomical 3D model built from real muscle meshes.",
   ],
   [
     "Nutrition",
-    "Macro tracking with quick-add foods and saved meals, bodyweight trend, Mifflin-St Jeor targets and a weekly check-in that adjusts calories from your real trend.",
+    "Macro tracking with a searchable food library and saved meals, bodyweight trend, Mifflin-St Jeor targets and a weekly check-in that adjusts calories from your real trend.",
   ],
   [
     "Photo to macros",
-    "A server route sends a compressed meal photo to a vision model and returns an editable draft with confidence ranges. The API key never reaches the browser.",
+    "Snap a meal, describe it, or both (brand and amount sharpen it). A server route asks Claude for an estimate and returns an editable draft with confidence ranges. The API key never reaches the browser.",
   ],
 ];
 
@@ -43,11 +43,11 @@ export default function AboutPage() {
   return (
     <Page title="About Alfred" subtitle="A personal training log, built for one lifter.">
       <div className="panel p-5">
-        <p className="text-[15px] leading-relaxed text-fog-2">
+        <p className="text-base leading-relaxed text-fog-2">
           Alfred is a training, nutrition and recovery app I built for my own Push / Pull / Legs / Upper / Lower split. It installs to the
           iPhone home screen, works offline in the gym, and keeps all data on the device.
         </p>
-        <p className="mt-3 text-[15px] leading-relaxed text-fog-2">
+        <p className="mt-3 text-base leading-relaxed text-fog-2">
           What you&apos;re seeing is a <span className="text-bone">demo athlete</span> with eight weeks of generated history. Real data
           never leaves the owner&apos;s phone, so there&apos;s nothing personal here to see. Click around and log a set; it resets when you
           leave.
@@ -79,12 +79,19 @@ export default function AboutPage() {
       <SectionTitle>Built with</SectionTitle>
       <div className="flex flex-wrap gap-2">
         {STACK.map((s) => (
-          <span key={s} className="rounded-full border border-steel bg-gunmetal px-3 py-1.5 text-sm text-fog-2">
+          <span key={s} className="rounded-full bg-white/[0.07] px-3 py-1.5 text-sm text-fog-2">
             {s}
           </span>
         ))}
       </div>
       <p className="mt-6 text-sm text-fog">
+        3D anatomy built from BodyParts3D, © The Database Center for Life Science, licensed under{" "}
+        <a href="https://creativecommons.org/licenses/by/4.0/" className="text-signal" target="_blank" rel="noreferrer">
+          CC BY 4.0
+        </a>
+        .
+      </p>
+      <p className="mt-3 text-sm text-fog">
         Source:{" "}
         <a href="https://github.com/nikoinparis/alfred" className="text-bone underline underline-offset-4" target="_blank" rel="noreferrer">
           github.com/nikoinparis/alfred

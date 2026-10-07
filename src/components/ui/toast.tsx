@@ -36,7 +36,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           {toasts.map((t) => (
             <motion.div
               key={t.id}
-              layout
+              layout="position"
               initial={{ opacity: 0, y: -16, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10 }}
@@ -45,7 +45,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 "pointer-events-auto flex max-w-md items-center gap-3 rounded-[14px] border px-4 py-3 text-sm shadow-[0_12px_40px_-12px_rgb(0_0_0_/_0.8)]",
                 t.tone === "signal" && "border-signal/50 bg-[#211a0b] text-bone",
                 t.tone === "danger" && "border-crimson/50 bg-[#22100f] text-bone",
-                t.tone === "default" && "border-steel-2 bg-gunmetal-2 text-bone",
+                t.tone === "default" && "border-white/10 bg-gunmetal-2 text-bone",
               )}
             >
               <div className="min-w-0 flex-1">{t.message}</div>

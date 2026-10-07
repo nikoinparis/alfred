@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, expect, it } from "vitest";
-import { exportBackup, exportSetsCsv, importBackup, parseBackup } from "./backup";
+import { backupDue, exportBackup, exportSetsCsv, importBackup, parseBackup } from "./backup";
 import { AlfredDB } from "./schema";
 import { seedDemo } from "./seed";
 
@@ -53,5 +53,19 @@ describe("demo seed idempotency", () => {
     await seedDemo(db, "2026-10-07");
     expect(await db.sessions.count()).toBe(n);
     expect(await db.foodLogs.count()).toBe(f);
+  });
+});
+
+describe("backupDue", () => {
+  const day = 86_400_000;
+  const now = 100 * day;
+  it("waits until there's something worth backing up", () => {
+    expect(backupDue({ sessions: 1, now })).toBe(false);
+    expect(backupDue({ sessions: 3, now })).toBe(true);
+  });
+  it("nudges weekly and respects snooze", () => {
+    expect(backupDue({ sessions: 9, lastBackupAt: now - 3 * day, now })).toBe(false);
+    expect(backupDue({ sessions: 9, lastBackupAt: now - 8 * day, now })).toBe(true);
+    expect(backupDue({ sessions: 9, lastBackupAt: now - 8 * day, snoozeUntil: now + day, now })).toBe(false);
   });
 });

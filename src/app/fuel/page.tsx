@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { format } from "date-fns";
-import { Camera, ChevronLeft, ChevronRight, Plus, Sparkles, Target, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Sparkles, Target, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useApp, useSettings } from "@/components/providers/app-provider";
 import { AddFoodSheet, MacroLine } from "@/components/fuel/add-food-sheet";
@@ -17,7 +17,7 @@ import { NumberField } from "@/components/ui/controls";
 import { Sheet } from "@/components/ui/sheet";
 import { useToast } from "@/components/ui/toast";
 import { useLatestBodyweight, useToday } from "@/lib/db/hooks";
-import { logFood, resolveTargets, sumLogs } from "@/lib/db/nutrition";
+import { resolveTargets, sumLogs } from "@/lib/db/nutrition";
 import type { FoodLog } from "@/lib/db/schema";
 import { addDays, parseISODate } from "@/lib/domain/dates";
 import { cn } from "@/lib/cn";
@@ -25,7 +25,6 @@ import { cn } from "@/lib/cn";
 export default function FuelPage() {
   const { db } = useApp();
   const settings = useSettings();
-  const toast = useToast();
   const t = useToday();
   const bw = useLatestBodyweight();
   const [offset, setOffset] = useState(0);
@@ -36,16 +35,6 @@ export default function FuelPage() {
 
   const dayLogs = useLiveQuery(() => db.foodLogs.where("date").equals(date).sortBy("createdAt"), [db, date]);
   const weekLogs = useLiveQuery(() => db.foodLogs.where("date").between(addDays(date, -6), date, true, true).toArray(), [db, date]);
-  // Booleans aren't valid IndexedDB keys, so filter favourites in memory (the food list is small).
-  const quick = useLiveQuery(
-    async () =>
-      (await db.foods.toArray())
-        .filter((f) => f.favorite)
-        .sort((a, b) => (b.lastUsed ?? 0) - (a.lastUsed ?? 0))
-        .slice(0, 10),
-    [db],
-  );
-
   const { targets, source } = resolveTargets(settings, bw);
   const totals = sumLogs(dayLogs ?? []);
   const label = offset === 0 ? "Today" : offset === -1 ? "Yesterday" : format(parseISODate(date), "EEE d MMM");
@@ -95,33 +84,9 @@ export default function FuelPage() {
           <Plus className="size-5" /> Add food
         </Button>
         <Button size="lg" onClick={() => setPhoto(true)}>
-          <Camera className="size-5" /> Snap a meal
+          <Sparkles className="size-5" /> Log a meal
         </Button>
       </div>
-
-      {quick && quick.length > 0 && (
-        <>
-          <SectionTitle>Quick add</SectionTitle>
-          <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:px-0">
-            {quick.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={async () => {
-                  const entry = await logFood(db, date, f, 1);
-                  toast({ message: `Logged ${f.name}.`, action: { label: "Undo", onClick: () => db.foodLogs.delete(entry.id) } });
-                }}
-                className="flex h-14 shrink-0 flex-col items-start justify-center rounded-[12px] border border-steel bg-gunmetal px-3.5 text-left hover:border-steel-2 active:scale-[0.97]"
-              >
-                <span className="max-w-40 truncate text-sm">{f.name}</span>
-                <span className="text-xs text-fog">
-                  {f.kcal} kcal · {f.protein}g P
-                </span>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
 
       <SectionTitle
         action={
@@ -143,7 +108,7 @@ export default function FuelPage() {
               >
                 <span className="w-11 shrink-0 text-xs text-fog">{format(new Date(l.createdAt), "HH:mm")}</span>
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5 text-[15px]">
+                  <span className="flex items-center gap-1.5 text-base">
                     <span className="truncate">{l.name}</span>
                     {l.source === "photo" && <Sparkles className="size-3.5 shrink-0 text-ice" aria-label="From photo" />}
                   </span>
@@ -159,8 +124,8 @@ export default function FuelPage() {
         </ul>
       ) : (
         <div className="panel px-5 py-8 text-center">
-          <p className="text-[15px]">Nothing logged {offset === 0 ? "yet today" : "this day"}.</p>
-          <p className="mt-1 text-sm text-fog">Tap a quick-add food, or snap a photo of your plate.</p>
+          <p className="text-base">Nothing logged {offset === 0 ? "yet today" : "this day"}.</p>
+          <p className="mt-1 text-sm text-fog">Add a food, or snap a photo of your plate and say what it is.</p>
         </div>
       )}
 

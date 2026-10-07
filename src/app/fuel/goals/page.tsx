@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, CheckCircle2, CircleAlert, Hourglass, TrendingDown, TrendingUp } from "lucide-react";
+import { CheckCircle2, CircleAlert, Hourglass, TrendingDown, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import { updateSettings, useApp, useSettings } from "@/components/providers/app-provider";
 import { Page, SectionTitle } from "@/components/shell/page";
@@ -54,11 +53,7 @@ export default function GoalsPage() {
       subtitle={
         saved ? "Changes apply to your Fuel targets immediately." : "Fill this in once; Alfred keeps it updated from your weigh-ins."
       }
-      actions={
-        <Link href="/fuel" className="mb-0.5 flex items-center gap-1 text-sm text-fog hover:text-bone">
-          <ArrowLeft className="size-4" /> Fuel
-        </Link>
-      }
+      back={{ href: "/fuel", label: "Fuel" }}
     >
       <SectionTitle className="mt-2">What you&apos;re going for</SectionTitle>
       <div className="grid gap-2 sm:grid-cols-3">
@@ -78,7 +73,9 @@ export default function GoalsPage() {
               }
               className={cn(
                 "rounded-[14px] border p-4 text-left transition-colors",
-                active ? "border-signal bg-signal-soft" : "border-steel bg-gunmetal hover:border-steel-2",
+                active
+                  ? "border-transparent bg-signal-soft ring-1 ring-signal/60"
+                  : "border-transparent bg-white/[0.06] hover:bg-white/[0.09]",
               )}
               aria-pressed={active}
             >
@@ -177,7 +174,9 @@ export default function GoalsPage() {
                 onClick={() => setProfile({ activity: a })}
                 className={cn(
                   "flex items-center justify-between rounded-[10px] border px-3 py-2.5 text-left text-sm",
-                  profile.activity === a ? "border-signal bg-signal-soft text-bone" : "border-steel text-fog-2",
+                  profile.activity === a
+                    ? "border-transparent bg-signal-soft text-signal"
+                    : "border-transparent bg-white/[0.07] text-fog-2",
                 )}
               >
                 {ACTIVITY_LABEL[a]}
@@ -214,7 +213,7 @@ export default function GoalsPage() {
             Whatever calories are left after protein (4 kcal/g) and fat (9 kcal/g), divided by 4. Carbs fuel your sessions.
           </Step>
         </ol>
-        <div className="mt-4 flex items-baseline justify-between border-t border-steel pt-3">
+        <div className="mt-4 flex items-baseline justify-between border-t border-separator pt-3">
           <span className="text-fog-2">Daily calories</span>
           <span className="readout text-[34px] font-semibold">{breakdown.targets.kcal}</span>
         </div>
@@ -292,7 +291,7 @@ function CheckInCard() {
         <div className="flex gap-3">
           <div className="mt-0.5">{icon}</div>
           <div className="min-w-0 flex-1">
-            <p className="text-[15px] text-bone">{ci.message}</p>
+            <p className="text-base text-bone">{ci.message}</p>
             <p className="mt-1 text-sm text-fog">
               Compares your 14-day weight trend and last 7 days of logged intake with your goal.
               {ci.actualRate !== null && ` Trend: ${ci.actualRate >= 0 ? "+" : ""}${ci.actualRate.toFixed(2)} kg/wk.`}
@@ -316,7 +315,7 @@ function CheckInCard() {
           </Button>
         )}
         {settings.kcalAdjustment !== 0 && (
-          <div className="mt-3 flex items-center justify-between border-t border-steel pt-3 text-sm">
+          <div className="mt-3 flex items-center justify-between border-t border-separator pt-3 text-sm">
             <span className="text-fog-2">
               Check-in adjustments so far: {settings.kcalAdjustment > 0 ? "+" : ""}
               {settings.kcalAdjustment} kcal (from carbs and fat; protein stays fixed)

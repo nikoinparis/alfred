@@ -1,5 +1,14 @@
 # Roadmap
 
+## Round 2 (7 Oct 2026, from your feedback)
+
+- **Planner:** Push/Pull/Legs is one block in any order, Upper/Lower another in either order; rest comes after a finished block, so Lower → Upper back to back is suggested, not Lower → Rest.
+- **Removed:** the rest timer and the food quick-add strip (favourites still sort first in food search).
+- **Log a meal:** photo, description, or both. Brand and amount ("Kellogg's Corn Flakes, 40 g, 200 ml milk") make Claude use that product's label. After the estimate you can add a detail and re-estimate. Description-only works too.
+- **Shipped the top suggestions:** weekly backup nudge with one-tap share to Files; **Same again** (one tap logs the next set with the last weight × reps); a quick effort (RPE) prompt after each set, and RPE-aware overload (all sets ≤ RPE 7 → double step).
+- **Design pass informed by Apple's HIG:** system font for text, iOS-style type scale, collapsing large titles over a translucent nav bar, inset grouped lists, floating material tab bar with a sliding selection, sheets with grabber and leading Cancel/Close, animated segmented controls, iOS-proportioned switches, ≥44 pt targets, press feedback everywhere.
+- **3D body:** replaced the mannequin with an anatomical écorché built from BodyParts3D's real muscle meshes (CC BY 4.0), modelled on your reference: heat colours by default, a pastel **Anatomy** mode, tap any muscle, Front/Back swings the camera. Abs, lats and the lower-back layer are generated to fit the body because the dataset lacks them.
+
 ## ☀️ Morning summary (overnight build, 7 Oct 2026)
 
 **Live:** https://alfred-orpin.vercel.app · **Repo:** https://github.com/nikoinparis/alfred (public, auto-deploys on push to `main`)
@@ -29,7 +38,6 @@ All five milestones are built, tested (76 unit tests), committed one per milesto
 
 - I couldn't run a live photo estimate (no API key on the Mac). The route's auth, validation and error paths are verified; the first real call happens once you add the key.
 - The 3D figure is the weakest visual. It works (rotate, zoom, tap) but reads as a mannequin.
-- The rest-timer chime can't play while iOS has the app backgrounded (web apps can't). Keep the app open between sets.
 - Offline: pages and assets are cached after the first visit. Photo estimates obviously need a connection.
 
 ## Suggested next improvements (ranked by value ÷ effort)
@@ -54,10 +62,10 @@ Tell me which ones you want and I'll take them in order.
 | # | Milestone | Status |
 |---|-----------|--------|
 | 0 | Foundation: design system, PWA shell, local DB, seed split, demo/owner modes, backup | ✅ |
-| 1 | Workout logger, today checklist, rest timer, PRs, swaps, history charts, overload suggestions | ✅ |
+| 1 | Workout logger, today checklist, PRs, swaps, history charts, overload suggestions | ✅ |
 | 2 | Weekly planner with smart day-type suggestions, weekly review, streaks | ✅ |
 | 3 | Body heatmap (2D + 3D) | ✅ |
-| 4 | Calorie & macro tracking, quick-add, saved meals, bodyweight trend | ✅ |
+| 4 | Calorie & macro tracking, food library, saved meals, bodyweight trend | ✅ |
 | 5 | Photo-to-macros, goal engine, weekly check-in | ✅ |
 
 Approved extras, all shipped: JSON/CSV export + import, plate calculator, warm-up ramp generator, session summary card, weekly review + streaks, Indonesian foods quick-add.
@@ -73,6 +81,8 @@ Goal: a rotatable body where each muscle group is its own mesh, coloured by week
 | Sketchfab écorché models | Varies (often CC BY) | Usually one mesh | Look great, but you'd have to cut muscles apart by hand. |
 | **Stylised low-poly figure built in code** ✅ shipped | Ours | Yes, by construction | Tiny (no asset download), instant, every region is data in `body-map-3d.tsx`. Reads as "suit armour" rather than anatomy. |
 
-**Shipped:** the stylised figure: a mannequin with muscle plates built from primitives (react-three-fiber, lazy-loaded only when you open 3D). Rotate, pinch-zoom, tap a muscle. The 2D SVG view stays as the default and fallback.
+**Update (round 2):** replaced by the BodyParts3D anatomical model; see README → 3D body model.
+
+**Originally shipped:** the stylised figure: a mannequin with muscle plates built from primitives (react-three-fiber, lazy-loaded only when you open 3D). Rotate, pinch-zoom, tap a muscle. The 2D SVG view stays as the default and fallback.
 
 **Recommended upgrade if you want anatomical realism:** take Z-Anatomy into Blender, join meshes into the 17 groups in `src/lib/domain/muscles.ts`, name each object after its muscle key, decimate to ~60k tris total, export `public/models/body.glb` with Draco, and swap the primitives for `useGLTF` meshes keyed by name. The heat colouring and selection code don't change. Add attribution (CC BY-SA) on the About page.

@@ -2,7 +2,7 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { format } from "date-fns";
-import { ArrowLeft, ChevronRight, Dumbbell } from "lucide-react";
+import { ChevronRight, Dumbbell } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useApp, useSettings } from "@/components/providers/app-provider";
 import { BarTrend, LineTrend } from "@/components/history/trend-chart";
@@ -164,7 +164,7 @@ function ExerciseList({
             className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left hover:bg-gunmetal-2/40"
           >
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[15px]">{ex.name}</p>
+              <p className="truncate text-base">{ex.name}</p>
               <p className="text-sm text-fog">
                 {count} session{count === 1 ? "" : "s"} · last {format(parseISODate(last.date), "d MMM")}
               </p>
@@ -194,15 +194,7 @@ function ExerciseDetail({ exercise, sessions, onBack }: { exercise: Exercise; se
   const bestVol = history.reduce((a, p) => (p.volume > a.volume ? p : a), history[0]);
 
   return (
-    <Page
-      title={exercise.name}
-      subtitle={`${history.length} sessions`}
-      actions={
-        <button type="button" onClick={onBack} className="mb-0.5 flex items-center gap-1 text-sm text-fog hover:text-bone">
-          <ArrowLeft className="size-4" /> Back
-        </button>
-      }
-    >
+    <Page title={exercise.name} subtitle={`${history.length} sessions`} back={{ label: "History", onClick: onBack }}>
       {history.length === 0 ? (
         <EmptyState title="No sets yet" body="Log this exercise and its progress chart appears here." />
       ) : (
@@ -254,12 +246,12 @@ function ExerciseDetail({ exercise, sessions, onBack }: { exercise: Exercise; se
                   <th className="px-4 py-2 text-right font-normal">e1RM</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-steel border-t border-steel">
+              <tbody className="divide-y divide-separator border-t border-separator">
                 {[...history].reverse().map((p) => (
                   <tr key={p.sessionId}>
                     <td className="whitespace-nowrap px-4 py-2.5 text-fog-2">{format(parseISODate(p.date), "d MMM yy")}</td>
                     <td className="px-2 py-2.5">
-                      <span className="readout text-[15px]">
+                      <span className="readout text-base">
                         {p.entry.sets
                           .filter((s) => s.done && s.kind !== "warmup")
                           .map(
@@ -269,7 +261,7 @@ function ExerciseDetail({ exercise, sessions, onBack }: { exercise: Exercise; se
                           .join("  ")}
                       </span>
                     </td>
-                    <td className={cn("readout px-4 py-2.5 text-right text-[15px]", p === bestE1 && "text-signal")}>
+                    <td className={cn("readout px-4 py-2.5 text-right text-base", p === bestE1 && "text-signal")}>
                       {p.e1rm ? formatNumber(Math.round(displayWeight(p.e1rm, "kg", unit) * 2) / 2) : "–"}
                     </td>
                   </tr>
@@ -311,7 +303,7 @@ function SessionSheet({
             return (
               <li key={e.id} className="panel p-3.5">
                 <button type="button" className="flex w-full items-center gap-2 text-left" onClick={() => onExercise(e.exerciseId)}>
-                  <span className="min-w-0 flex-1 truncate text-[15px]">{ex?.name ?? e.exerciseId}</span>
+                  <span className="min-w-0 flex-1 truncate text-base">{ex?.name ?? e.exerciseId}</span>
                   <ChevronRight className="size-4 text-fog" />
                 </button>
                 {!ex?.isConditioning && (

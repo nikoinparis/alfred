@@ -66,7 +66,7 @@ export function MuscleSheet({
               <ul className="panel divide-steel">
                 {volume.contributions.map((c) => (
                   <li key={`${c.exerciseId}-${c.role}`} className="flex items-center gap-3 px-4 py-2.5">
-                    <span className="min-w-0 flex-1 truncate text-[15px]">{exercises[c.exerciseId]?.name ?? c.exerciseId}</span>
+                    <span className="min-w-0 flex-1 truncate text-base">{exercises[c.exerciseId]?.name ?? c.exerciseId}</span>
                     <span className="text-xs text-fog">{c.role === "primary" ? "primary" : "secondary ×0.5"}</span>
                     <span className="readout w-10 text-right text-lg">{formatNumber(c.sets)}</span>
                   </li>
@@ -86,7 +86,7 @@ export function MuscleSheet({
                 {left.suggestions.map((s) => (
                   <li key={s.exerciseId} className="flex items-center gap-3 px-4 py-2.5">
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[15px]">{exercises[s.exerciseId]?.name}</span>
+                      <span className="block truncate text-base">{exercises[s.exerciseId]?.name}</span>
                       <span className="text-xs text-fog">{(daysFor.get(s.exerciseId) ?? []).map((d) => DAY_LABEL[d]).join(", ")} day</span>
                     </span>
                     <span className="readout text-lg">{s.setsNeeded} sets</span>
@@ -133,7 +133,7 @@ export function TargetsSheet({ open, onClose, targets }: { open: boolean; onClos
       <ul className="divide-steel">
         {MUSCLES.map((m) => (
           <li key={m} className="flex items-center gap-3 py-2">
-            <span className="min-w-0 flex-1 text-[15px]">{MUSCLE_META[m].label}</span>
+            <span className="min-w-0 flex-1 text-base">{MUSCLE_META[m].label}</span>
             <NumberField
               label={`${MUSCLE_META[m].label} target`}
               value={targets[m] ?? MUSCLE_META[m].defaultTarget}

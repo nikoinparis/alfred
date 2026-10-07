@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft, Plus, Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Page } from "@/components/shell/page";
 import { useApp } from "@/components/providers/app-provider";
@@ -36,15 +35,7 @@ export default function ExerciseLibraryPage() {
   }, [exercises, q]);
 
   return (
-    <Page
-      title="Exercise library"
-      subtitle="Primary muscles count 1 set, secondary 0.5."
-      actions={
-        <Link href="/settings" className="mb-0.5 flex items-center gap-1 text-sm text-fog hover:text-bone">
-          <ArrowLeft className="size-4" /> Settings
-        </Link>
-      }
-    >
+    <Page title="Exercise library" subtitle="Primary muscles count 1 set, secondary 0.5." back={{ href: "/settings", label: "Settings" }}>
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fog" />
@@ -79,7 +70,7 @@ export default function ExerciseLibraryPage() {
                 e.archived && "opacity-50",
               )}
             >
-              <span className="text-[15px]">
+              <span className="text-base">
                 {e.name}
                 {e.archived && <span className="ml-2 text-xs text-fog">hidden</span>}
               </span>
@@ -171,7 +162,7 @@ function ExerciseEditor({
                     "h-9 rounded-full border px-3 text-sm transition-colors",
                     role === "primary" && "border-signal bg-signal text-signal-ink",
                     role === "secondary" && "border-signal/60 bg-signal-soft text-signal",
-                    !role && "border-steel text-fog-2",
+                    !role && "border-transparent bg-white/[0.07] text-fog-2",
                   )}
                 >
                   {MUSCLE_META[m].label}
@@ -190,7 +181,7 @@ function ExerciseEditor({
                 onClick={() => set({ equipment: q })}
                 className={cn(
                   "h-9 rounded-full border px-3 text-sm capitalize",
-                  e.equipment === q ? "border-signal bg-signal-soft text-bone" : "border-steel text-fog-2",
+                  e.equipment === q ? "border-transparent bg-signal-soft text-signal" : "border-transparent bg-white/[0.07] text-fog-2",
                 )}
               >
                 {q}
@@ -208,10 +199,10 @@ function ExerciseEditor({
                 onClick={() => set({ loadMode: m.value })}
                 className={cn(
                   "rounded-[12px] border px-3 py-2.5 text-left",
-                  e.loadMode === m.value ? "border-signal bg-signal-soft" : "border-steel",
+                  e.loadMode === m.value ? "border-transparent bg-signal-soft ring-1 ring-signal/60" : "border-transparent bg-white/[0.05]",
                 )}
               >
-                <p className="text-[15px]">{m.label}</p>
+                <p className="text-base">{m.label}</p>
                 <p className="text-xs text-fog">{m.hint}</p>
               </button>
             ))}
@@ -229,14 +220,14 @@ function ExerciseEditor({
         </Field>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-[15px]">Compound lift</p>
+            <p className="text-base">Compound lift</p>
             <p className="text-xs text-fog">Longer rest and a warm-up ramp.</p>
           </div>
           <Toggle label="Compound lift" checked={e.compound} onChange={(compound) => set({ compound })} />
         </div>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-[15px]">Reps per side</p>
+            <p className="text-base">Reps per side</p>
             <p className="text-xs text-fog">Lunges, split squats, single-arm work.</p>
           </div>
           <Toggle label="Reps per side" checked={Boolean(e.perSide)} onChange={(perSide) => set({ perSide })} />

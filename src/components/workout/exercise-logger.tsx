@@ -15,10 +15,12 @@ import {
   addWarmups,
   applyWeight,
   historyFor,
+  lastDoneSet,
   mutateEntry,
   overloadFor,
   removeEntry,
   removeSet,
+  repeatLastSet,
   updateSet,
   workingSetCount,
 } from "@/lib/db/workouts";
@@ -26,7 +28,6 @@ import { detectPRs, warmupRamp, type OverloadAction, type PR } from "@/lib/domai
 import { displayStep, displayWeight, formatNumber, formatWeight, incrementFor } from "@/lib/domain/units";
 import type { Exercise, Session, SetKind, SetLog, TemplateSlot } from "@/lib/domain/types";
 import { cn } from "@/lib/cn";
-import { useRestTimer } from "./rest-timer";
 import { PlateCalculator } from "./plate-calc";
 import { musclesLine } from "./exercise-picker";
 import { format } from "date-fns";
@@ -118,7 +119,7 @@ function LoggerBody({
   const unit = settings.unit;
   const bw = useLatestBodyweight();
   const toast = useToast();
-  const rest = useRestTimer();
+  const [rpeFor, setRpeFor] = useState<string | null>(null);
   const [plates, setPlates] = useState<number | null | false>(false);
   const [openRow, setOpenRow] = useState<string | null>(null);
   const entry = session.entries.find((e) => e.id === entryId)!;
@@ -133,7 +134,7 @@ function LoggerBody({
           onClick={() => updateSet(db, session.id, entry.id, set.id, { done: !set.done, reps: 1, completedAt: timestamp() })}
           className={cn(
             "flex w-full items-center gap-4 rounded-[14px] border p-4 text-left transition-colors",
-            set.done ? "border-verdigris/50 bg-verdigris/10" : "border-steel bg-gunmetal",
+            set.done ? "border-verdigris/50 bg-verdigris/10" : "border-transparent bg-gunmetal",
           )}
         >
           <span
@@ -144,7 +145,7 @@ function LoggerBody({
           >
             {set.done && <Check className="size-6" strokeWidth={3} />}
           </span>
-          <span className="text-[15px]">{set.done ? "Done. Nice work." : "Tap when done"}</span>
+          <span className="text-base">{set.done ? "Done. Nice work." : "Tap when done"}</span>
         </button>
       </div>
     );
@@ -161,6 +162,7 @@ function LoggerBody({
   const step = Math.min(incrementFor(ex.incrementKg, unit), unit === "kg" ? 2.5 : 5) || displayStep(unit);
   const weightLabel = ex.loadMode === "assisted" ? "Assist" : ex.loadMode === "bodyweight" ? "Added" : unit;
 
+  const prevDone = lastDoneSet(entry);
   let workingIndex = 0;
 
   const markDone = async (set: SetLog) => {
@@ -171,11 +173,8 @@ function LoggerBody({
     }
     await updateSet(db, session.id, entry.id, set.id, { done: nowDone, completedAt: nowDone ? timestamp() : undefined });
     if (!nowDone) return;
-    if (settings.haptics) navigator.vibrate?.(15);
-    if (set.kind !== "drop" && set.kind !== "warmup") {
-      const secs = ex.compound ? settings.restSeconds : settings.restSecondsIsolation;
-      rest.start(secs, ex.name);
-    }
+    navigator.vibrate?.(10);
+    if (set.kind !== "warmup") setRpeFor(set.id);
     if (history?.length && set.kind !== "warmup") {
       const after = { ...entry, sets: entry.sets.map((s) => (s.id === set.id ? { ...s, done: true } : s)) };
       const before = { ...entry, sets: entry.sets.filter((s) => s.done) };
@@ -224,7 +223,7 @@ function LoggerBody({
               <span
                 key={s.id}
                 className={cn(
-                  "rounded-md border border-steel px-1.5 py-0.5 readout text-[15px]",
+                  "rounded-md bg-white/[0.07] px-1.5 py-0.5 readout text-base",
                   s.kind === "drop" && "border-dashed text-fog-2",
                 )}
               >
@@ -263,7 +262,7 @@ function LoggerBody({
               return (
                 <motion.li
                   key={set.id}
-                  layout
+                  layout="position"
                   initial={{ opacity: 0, y: -6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, height: 0 }}
@@ -341,12 +340,39 @@ function LoggerBody({
                       onPlates={ex.equipment === "barbell" ? () => setPlates(weight) : undefined}
                     />
                   )}
+                  {rpeFor === set.id && set.done && openRow !== set.id && (
+                    <RpeQuickPick
+                      value={set.rpe ?? null}
+                      onPick={(rpe) => {
+                        updateSet(db, session.id, entry.id, set.id, { rpe });
+                        setRpeFor(null);
+                      }}
+                      onDismiss={() => setRpeFor(null)}
+                    />
+                  )}
                 </motion.li>
               );
             })}
           </AnimatePresence>
         </ul>
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {prevDone && (
+          <Button
+            variant="tinted"
+            className="mt-3 w-full"
+            onClick={async () => {
+              const id = await repeatLastSet(db, session.id, entry.id);
+              if (id) setRpeFor(id);
+              navigator.vibrate?.(10);
+            }}
+          >
+            <Repeat2 className="size-4" /> Same again ·{" "}
+            <span className="readout text-lg">
+              {prevDone.weight !== null ? `${formatNumber(displayWeight(prevDone.weight, prevDone.unit, unit))} ${unit}` : "BW"} ×{" "}
+              {prevDone.reps}
+            </span>
+          </Button>
+        )}
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
           <Button size="sm" onClick={() => addSet(db, session.id, entry.id, "working", unit, ex.incrementKg)}>
             <Plus className="size-4" /> Add set
           </Button>
@@ -359,7 +385,7 @@ function LoggerBody({
             </Button>
           )}
         </div>
-        <p className="mt-2 text-xs text-fog">Tap a set number for warm-up, failure, RPE or delete.</p>
+        <p className="mt-2 px-1 text-xs text-fog">Tap a set number for warm-up, failure, effort or delete.</p>
       </div>
 
       <label className="block">
@@ -369,7 +395,7 @@ function LoggerBody({
           onBlur={(e) => mutateEntry(db, session.id, entry.id, (en) => void (en.note = e.target.value || undefined))}
           rows={2}
           placeholder="Seat 4, grip, how it felt…"
-          className="w-full resize-none rounded-[12px] border border-steel bg-night/60 px-3 py-2.5 text-[15px] outline-none placeholder:text-fog/60 focus:border-signal/60"
+          className="w-full resize-none rounded-[12px] bg-white/[0.07] px-3.5 py-3 text-base outline-none placeholder:text-fog/60 focus:border-signal/60"
         />
       </label>
 
@@ -387,6 +413,47 @@ function LoggerBody({
 
       <PlateCalculator open={plates !== false} onClose={() => setPlates(false)} initial={plates === false ? null : plates} unit={unit} />
     </div>
+  );
+}
+
+/** Optional effort prompt after a set: one tap, or ignore it. Feeds the RPE-aware suggestions. */
+function RpeQuickPick({ value, onPick, onDismiss }: { value: number | null; onPick: (r: number) => void; onDismiss: () => void }) {
+  const options: [number, string][] = [
+    [6, "Easy"],
+    [7, "3 left"],
+    [8, "2 left"],
+    [9, "1 left"],
+    [10, "Max"],
+  ];
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      className="overflow-hidden"
+    >
+      <div className="mt-2 flex items-center gap-1.5 pl-[38px]">
+        <span className="mr-0.5 text-xs text-fog">Effort</span>
+        {options.map(([r, label]) => (
+          <button
+            key={r}
+            type="button"
+            onClick={() => onPick(r)}
+            aria-label={`RPE ${r}: ${label}`}
+            className={cn(
+              "flex h-11 min-w-0 flex-1 flex-col items-center justify-center rounded-[10px] text-xs transition-colors",
+              value === r ? "bg-signal text-signal-ink" : "bg-white/[0.07] text-fog-2 active:bg-white/15",
+            )}
+          >
+            <span className="readout text-base font-semibold">{r}</span>
+            <span className="text-[10px] leading-none opacity-80">{label}</span>
+          </button>
+        ))}
+        <button type="button" onClick={onDismiss} className="h-11 px-1.5 text-xs text-fog" aria-label="Skip effort rating">
+          Skip
+        </button>
+      </div>
+    </motion.div>
   );
 }
 
@@ -412,7 +479,7 @@ function SetOptions({
           { k: "failure", label: "To failure" },
         ];
   return (
-    <div className="mt-2 rounded-[12px] border border-steel bg-night/50 p-2.5">
+    <div className="mt-2 rounded-[12px] bg-white/[0.04] p-2.5">
       {kinds.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {kinds.map(({ k, label }) => (
@@ -452,7 +519,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
       aria-pressed={active}
       className={cn(
         "h-9 min-w-9 rounded-full border px-3 text-sm transition-colors",
-        active ? "border-signal bg-signal-soft text-signal" : "border-steel text-fog-2 hover:border-steel-2",
+        active ? "border-transparent bg-signal-soft text-signal" : "border-transparent bg-white/[0.07] text-fog-2",
       )}
     >
       {children}
@@ -481,7 +548,7 @@ export function SuggestionCard({
     <div
       className={cn(
         "flex items-center gap-3 rounded-[14px] border px-3.5 py-3",
-        action === "increase" ? "border-signal/40 bg-signal-soft" : "border-steel bg-gunmetal/60",
+        action === "increase" ? "border-signal/40 bg-signal-soft" : "border-transparent bg-white/[0.05]",
       )}
     >
       <div className={cn("grid size-10 shrink-0 place-items-center rounded-full bg-night/60", style.tone)}>

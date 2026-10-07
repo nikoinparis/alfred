@@ -75,7 +75,7 @@ export function ExercisePicker({ open, onClose, onPick, exercises, title, replac
                   }}
                   className={cn("flex min-h-14 w-full flex-col items-start justify-center px-4 py-2.5 text-left hover:bg-gunmetal-2/60")}
                 >
-                  <span className="text-[15px]">{e.name}</span>
+                  <span className="text-base">{e.name}</span>
                   <span className="text-sm text-fog">{musclesLine(e)}</span>
                 </button>
               </li>

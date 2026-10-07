@@ -2,6 +2,7 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { format } from "date-fns";
+import { BackupNudge } from "@/components/shell/backup-nudge";
 import { Page } from "@/components/shell/page";
 import { useApp, useSettings } from "@/components/providers/app-provider";
 import { SessionView } from "@/components/workout/session-view";
@@ -45,6 +46,7 @@ export default function TodayPage() {
     <Page title="Today" subtitle={subtitle} wide>
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0">
+          <BackupNudge />
           {session ? (
             <SessionView key={session.id} session={session} exercises={exercises} templates={templates} />
           ) : (

@@ -105,7 +105,7 @@ export function SessionView({ session, exercises, templates }: Props) {
                   {entry.done && <Check className="size-4" strokeWidth={3} />}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className={cn("flex items-center gap-1.5 text-[15px]", entry.done && "text-fog-2")}>
+                  <span className={cn("flex items-center gap-1.5 text-base", entry.done && "text-fog-2")}>
                     <span className="truncate">{ex.name}</span>
                     {hasPr && <Trophy className="size-3.5 shrink-0 text-signal" aria-label="Personal record" />}
                   </span>
@@ -286,7 +286,7 @@ function Summary({
           ))}
         </div>
         {stats.prs.length > 0 && (
-          <ul className="mt-4 space-y-1.5 border-t border-steel pt-3">
+          <ul className="mt-4 space-y-1.5 border-t border-separator pt-3">
             {stats.prs.map((p, i) => (
               <li key={i} className="flex items-center gap-2 text-sm">
                 <Trophy className="size-4 text-signal" />

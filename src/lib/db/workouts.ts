@@ -260,3 +260,33 @@ export function workingSetCount(entry: SessionEntry) {
 export function completedWorking(entry: SessionEntry) {
   return entry.sets.filter(isWorking).length;
 }
+
+/** The last completed non-warm-up set, which "same again" copies. */
+export function lastDoneSet(entry: SessionEntry): SetLog | undefined {
+  return [...entry.sets].reverse().find((s) => s.done && s.kind !== "warmup");
+}
+
+/**
+ * "Same again": copy the last completed set into the next open set and complete it,
+ * or append a new completed set when every set is done. Returns the completed set's id.
+ */
+export async function repeatLastSet(db: AlfredDB, sessionId: string, entryId: string): Promise<string | null> {
+  let doneId: string | null = null;
+  await mutateEntry(db, sessionId, entryId, (e) => {
+    const prev = lastDoneSet(e);
+    if (!prev) return;
+    const prevIdx = e.sets.indexOf(prev);
+    const next = e.sets.find((s, i) => i > prevIdx && !s.done && s.kind !== "warmup");
+    const copy = { weight: prev.weight, unit: prev.unit, reps: prev.reps, done: true, completedAt: Date.now() };
+    if (next) {
+      Object.assign(next, copy);
+      doneId = next.id;
+    } else {
+      const added = newSet(prev.unit, { ...copy, kind: prev.kind, parentId: prev.kind === "drop" ? prev.parentId : undefined });
+      e.sets.push(added);
+      doneId = added.id;
+    }
+    e.done = e.sets.filter((x) => x.kind !== "warmup").every((x) => x.done);
+  });
+  return doneId;
+}

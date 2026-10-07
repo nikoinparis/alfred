@@ -72,7 +72,7 @@ export function PlateCalculator({
             })}
             <div className="h-3 flex-1 rounded-r bg-[#6b737e]" />
           </div>
-          <p className="mt-3 text-[15px]">
+          <p className="mt-3 text-base">
             {load.perSide.length ? (
               <>
                 Each side: <span className="readout text-xl font-semibold">{load.perSide.map(formatNumber).join(" + ")}</span> {unit}

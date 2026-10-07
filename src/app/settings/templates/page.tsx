@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowDown, ArrowLeft, ArrowUp, Plus, RotateCcw, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, RotateCcw, X } from "lucide-react";
 import { useState } from "react";
 import { Page } from "@/components/shell/page";
 import { useApp, useSettings } from "@/components/providers/app-provider";
@@ -45,15 +44,7 @@ export default function TemplatesPage() {
   const editingSlot = tpl.slots.find((s) => s.id === editing);
 
   return (
-    <Page
-      title="Templates"
-      subtitle="Changes apply to your next session of that day."
-      actions={
-        <Link href="/settings" className="mb-0.5 flex items-center gap-1 text-sm text-fog hover:text-bone">
-          <ArrowLeft className="size-4" /> Settings
-        </Link>
-      }
-    >
+    <Page title="Templates" subtitle="Changes apply to your next session of that day." back={{ href: "/settings", label: "Settings" }}>
       <div role="tablist" aria-label="Day type" className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:px-0">
         {DAY_CHOICES.map((d) => (
           <button
@@ -64,7 +55,7 @@ export default function TemplatesPage() {
             onClick={() => setDay(d)}
             className={cn(
               "h-10 shrink-0 rounded-[10px] border px-3.5 text-sm font-medium",
-              d === day ? "border-signal bg-signal-soft text-bone" : "border-steel bg-gunmetal text-fog-2",
+              d === day ? "border-transparent bg-signal-soft text-signal" : "border-transparent bg-white/[0.07] text-fog-2",
             )}
           >
             {DAY_LABEL[d]}
@@ -78,7 +69,7 @@ export default function TemplatesPage() {
           return (
             <li key={slot.id} className="flex items-center gap-2 py-2 pl-4 pr-2">
               <button type="button" onClick={() => setEditing(slot.id)} className="min-w-0 flex-1 py-1 text-left">
-                <p className="truncate text-[15px]">{ex?.name ?? slot.exerciseId}</p>
+                <p className="truncate text-base">{ex?.name ?? slot.exerciseId}</p>
                 <p className="text-sm text-fog">
                   {ex?.isConditioning
                     ? "Recovery"
@@ -236,7 +227,7 @@ function SlotEditor({
                 <p className="mb-1.5 text-sm text-fog-2">Swap options</p>
                 <div className="flex flex-wrap gap-2">
                   {slot.alternates.map((id) => (
-                    <span key={id} className="flex h-9 items-center gap-1 rounded-full border border-steel bg-gunmetal pl-3 pr-1 text-sm">
+                    <span key={id} className="flex h-9 items-center gap-1 rounded-full bg-white/[0.07] pl-3 pr-1 text-sm">
                       {exercises[id]?.name ?? id}
                       <button
                         type="button"

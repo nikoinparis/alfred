@@ -139,6 +139,7 @@ export interface OverloadInput {
  * Double progression:
  * - every planned working set at the top of the rep range → add one increment
  *   (assisted lifts: remove one increment of assistance), unless average RPE ≥ 9.5;
+ *   two increments when every set was rated RPE ≤ 7;
  * - 2+ reps under the range on any set, two sessions running at the same weight → drop one increment;
  * - no e1RM progress across the last three sessions → deload ~10%;
  * - otherwise keep the weight and chase reps.
@@ -223,7 +224,11 @@ export function suggestOverload(input: OverloadInput): OverloadSuggestion {
         reason: `Hit ${plannedSets}×${repMax} but at RPE ${avgRpe.toFixed(1)}. Repeat once and make it look easier.`,
       };
     }
-    const next = round(Math.max(0, lastWeight + direction * inc));
+    // Every rated set felt easy (RPE ≤ 7, i.e. 3+ reps in reserve): take a double step.
+    const easy = avgRpe !== null && rpes.length === topSetsAtWeight.length && avgRpe <= 7;
+    const steps = easy ? 2 : 1;
+    const next = round(Math.max(0, lastWeight + direction * inc * steps));
+    const why = easy ? ` It felt easy (RPE ${fmt(Math.round(avgRpe * 10) / 10)}), so jump two steps.` : "";
     return {
       action: "increase",
       weight: next,
@@ -231,8 +236,8 @@ export function suggestOverload(input: OverloadInput): OverloadSuggestion {
       reps: repMin,
       reason:
         exercise.loadMode === "assisted"
-          ? `You hit ${plannedSets}×${repMax} with ${fmt(lastWeight)} ${unit} assist. Try ${fmt(next)} ${unit}.`
-          : `You hit ${plannedSets}×${repMax} at ${fmt(lastWeight)} ${unit}. Try ${fmt(next)} ${unit}.`,
+          ? `You hit ${plannedSets}×${repMax} with ${fmt(lastWeight)} ${unit} assist. Try ${fmt(next)} ${unit}.${why}`
+          : `You hit ${plannedSets}×${repMax} at ${fmt(lastWeight)} ${unit}. Try ${fmt(next)} ${unit}.${why}`,
     };
   }
 

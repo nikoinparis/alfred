@@ -2,7 +2,17 @@ import { addDays, compareDates } from "./dates";
 import { DAY_GROUPS, DAY_LABEL } from "./muscles";
 import type { DayLog, DayType, TrainingDayType } from "./types";
 
-/** Push → Pull → Legs → Rest → Upper → Lower → Rest, then repeat. */
+/**
+ * The split is two blocks, each followed by a rest day:
+ * Push/Pull/Legs in any order, then Upper/Lower in either order.
+ * Within a block, unfinished days are suggested in this canonical order.
+ */
+export const BLOCKS: readonly (readonly TrainingDayType[])[] = [
+  ["push", "pull", "legs"],
+  ["upper", "lower"],
+];
+
+/** Canonical walk through both blocks (used to generate demo history). */
 export const BASE_CYCLE: readonly DayType[] = ["push", "pull", "legs", "rest", "upper", "lower", "rest"];
 
 export const DEFAULT_MAX_CONSECUTIVE = 3;
@@ -20,18 +30,25 @@ export interface PlannerInput {
   until: string;
   /** Everything the user has done, skipped, or explicitly planned. */
   logs: DayLog[];
-  cycle?: readonly DayType[];
   maxConsecutive?: number;
 }
 
 interface State {
-  cursor: number;
+  block: number;
+  done: TrainingDayType[];
+  pendingRest: boolean;
   prev: DayType | null;
   consecutive: number;
 }
 
+const BLOCK_NAME = ["Push/Pull/Legs", "Upper/Lower"];
+
 function isTraining(t: DayType | null): t is TrainingDayType {
   return t !== null && t !== "rest";
+}
+
+function blockOf(t: TrainingDayType): number {
+  return BLOCKS.findIndex((b) => b.includes(t));
 }
 
 export function conflicts(a: DayType | null, b: DayType | null): boolean {
@@ -41,71 +58,67 @@ export function conflicts(a: DayType | null, b: DayType | null): boolean {
   return DAY_GROUPS[b].some((g) => ga.includes(g));
 }
 
-function applyDay(state: State, type: DayType | "off", cycle: readonly DayType[]): State {
+function applyDay(state: State, type: DayType | "off"): State {
   if (type === "off" || type === "rest") {
-    // Any non-training day satisfies a pending rest slot; training slots wait.
-    const cursor = cycle[state.cursor] === "rest" ? (state.cursor + 1) % cycle.length : state.cursor;
-    return { cursor, prev: "rest", consecutive: 0 };
+    // Any non-training day satisfies a pending rest; owed training days stay owed.
+    return { ...state, pendingRest: false, prev: "rest", consecutive: 0 };
   }
-  const idx = cycle.indexOf(type);
-  const cursor = idx === -1 ? state.cursor : (idx + 1) % cycle.length;
-  return { cursor, prev: type, consecutive: state.consecutive + 1 };
+  const b = blockOf(type);
+  // Training from the other block starts that block fresh; leftovers of the old one are dropped.
+  let done = b === state.block ? [...new Set([...state.done, type])] : [type];
+  let block = b;
+  let pendingRest = false;
+  if (BLOCKS[b].every((t) => done.includes(t))) {
+    block = (b + 1) % BLOCKS.length;
+    done = [];
+    pendingRest = true;
+  }
+  return { block, done, pendingRest, prev: type, consecutive: state.consecutive + 1 };
 }
 
 /**
  * Suggest day types for every unplanned date in [today, until].
  *
  * Rules, in priority order:
- * 1. Logged/planned days are fixed; the cycle position follows the last training day actually done.
- * 2. A missed or skipped past day counts as rest: it fills a pending rest slot,
- *    but the next training day is still owed (the cycle does not skip it).
- * 3. Never more than `maxConsecutive` training days in a row (including fixed future days).
- * 4. Never the same major muscle group on consecutive days (including fixed neighbours);
- *    if the cycle's next pick conflicts, take the next non-conflicting type in cycle order.
+ * 1. Logged/planned days are fixed; suggestions continue from what you actually did.
+ * 2. Push/Pull/Legs is one block and Upper/Lower another; days inside a block can come in any order.
+ *    Finishing a block earns a rest day, then the other block starts.
+ * 3. A missed or skipped day counts as rest: it clears a pending rest, but owed block days stay owed.
+ * 4. Never more than `maxConsecutive` training days in a row (including fixed future days).
+ * 5. Never the same major muscle group on consecutive days (including a fixed tomorrow).
  */
 export function suggestPlan(input: PlannerInput): Suggestion[] {
-  const cycle = input.cycle ?? BASE_CYCLE;
   const max = input.maxConsecutive ?? DEFAULT_MAX_CONSECUTIVE;
   const byDate = new Map<string, DayLog>();
   for (const log of input.logs) byDate.set(log.date, log);
 
   const sorted = [...input.logs].sort((a, b) => compareDates(a.date, b.date));
-  let state: State = { cursor: 0, prev: null, consecutive: 0 };
+  let state: State = { block: 0, done: [], pendingRest: false, prev: null, consecutive: 0 };
 
-  // Replay history up to (not including) today.
   if (sorted.length && compareDates(sorted[0].date, input.today) < 0) {
     for (let d = sorted[0].date; compareDates(d, input.today) < 0; d = addDays(d, 1)) {
       const log = byDate.get(d);
       const happened = log && log.status !== "skipped";
-      state = applyDay(state, happened ? log.dayType : "off", cycle);
+      state = applyDay(state, happened ? log.dayType : "off");
     }
   }
 
   const out: Suggestion[] = [];
   for (let d = input.today; compareDates(d, input.until) <= 0; d = addDays(d, 1)) {
     const fixed = byDate.get(d);
-    if (fixed && fixed.status !== "skipped") {
-      state = applyDay(state, fixed.dayType, cycle);
+    if (fixed) {
+      state = applyDay(state, fixed.status === "skipped" ? "off" : fixed.dayType);
       continue;
     }
-    if (fixed?.status === "skipped") {
-      state = applyDay(state, "off", cycle);
-      continue;
-    }
-
-    const next = fixedTrainingAhead(byDate, d);
-    const pick = choose(state, cycle, max, next);
+    const pick = choose(state, max, fixedTrainingAhead(byDate, d));
     out.push({ date: d, dayType: pick.dayType, reason: pick.reason });
-    state = applyDay(state, pick.dayType, cycle);
-    if (pick.dayType !== "rest" && pick.cursor !== undefined) state.cursor = pick.cursor;
+    state = applyDay(state, pick.dayType);
   }
   return out;
 }
 
 interface Ahead {
-  /** Type planned for the following day, if fixed. */
   nextType: DayType | null;
-  /** Number of consecutive fixed training days starting tomorrow. */
   run: number;
 }
 
@@ -121,37 +134,26 @@ function fixedTrainingAhead(byDate: Map<string, DayLog>, date: string): Ahead {
   return { nextType, run };
 }
 
-function choose(state: State, cycle: readonly DayType[], max: number, ahead: Ahead): { dayType: DayType; reason: string; cursor?: number } {
-  if (state.consecutive >= max) {
-    return { dayType: "rest", reason: `${max} training days in a row. Recover today.` };
-  }
-  if (state.consecutive + 1 + ahead.run > max) {
-    return { dayType: "rest", reason: "Rest now so the planned days ahead don't stack up." };
-  }
-
-  const candidate = cycle[state.cursor];
-  if (candidate === "rest") {
-    return { dayType: "rest", reason: "Scheduled recovery in the cycle." };
-  }
+function choose(state: State, max: number, ahead: Ahead): { dayType: DayType; reason: string } {
+  if (state.consecutive >= max) return { dayType: "rest", reason: `${max} training days in a row. Recover today.` };
+  if (state.consecutive + 1 + ahead.run > max) return { dayType: "rest", reason: "Rest now so the planned days ahead don't stack up." };
+  if (state.pendingRest)
+    return {
+      dayType: "rest",
+      reason: `${BLOCK_NAME[(state.block + BLOCKS.length - 1) % BLOCKS.length]} done. Recover before the next block.`,
+    };
 
   const ok = (t: DayType) => !conflicts(state.prev, t) && !conflicts(t, ahead.nextType);
-  if (ok(candidate)) {
-    return {
-      dayType: candidate,
-      reason: state.prev && isTraining(state.prev) ? `Follows ${DAY_LABEL[state.prev]} in your cycle.` : "Next up in your cycle.",
-    };
+  const remaining = BLOCKS[state.block].filter((t) => !state.done.includes(t));
+  const pick = remaining.find(ok);
+  if (pick) {
+    const left = remaining.filter((t) => t !== pick).map((t) => DAY_LABEL[t]);
+    const reason = state.done.length
+      ? left.length
+        ? `Next in your ${BLOCK_NAME[state.block]} block. ${left.join(" and ")} still to go.`
+        : `Finishes your ${BLOCK_NAME[state.block]} block.`
+      : `Starts your ${BLOCK_NAME[state.block]} block. Any order works.`;
+    return { dayType: pick, reason };
   }
-
-  for (let k = 1; k < cycle.length; k++) {
-    const idx = (state.cursor + k) % cycle.length;
-    const t = cycle[idx];
-    if (t !== "rest" && ok(t)) {
-      return {
-        dayType: t,
-        reason: `${DAY_LABEL[candidate]} would hit the same muscles back-to-back, so the cycle jumps to ${DAY_LABEL[t]}.`,
-        cursor: (idx + 1) % cycle.length,
-      };
-    }
-  }
-  return { dayType: "rest", reason: "Every option overlaps yesterday's muscles." };
+  return { dayType: "rest", reason: "Everything left in this block overlaps the muscles next to it." };
 }

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { EXERCISE_BY_ID } from "@/lib/domain/catalog";
 import { AlfredDB } from "./schema";
 import { seedBase } from "./seed";
-import { addSet, finishSession, prefillSets, startSession, swapExercise, updateSet } from "./workouts";
+import { addSet, finishSession, prefillSets, repeatLastSet, startSession, swapExercise, updateSet } from "./workouts";
 
 describe("prefillSets", () => {
   const press = EXERCISE_BY_ID["chest-press"];
@@ -58,5 +58,23 @@ describe("session lifecycle", () => {
     expect(swapped.exerciseId).toBe("assisted-pullup");
     expect(swapped.swappedFromExerciseId).toBe("lat-pulldown");
     expect(after.exerciseIds).toContain("assisted-pullup");
+  });
+});
+
+describe("repeatLastSet", () => {
+  it("copies the last completed set into the next open one, then appends once all are done", async () => {
+    const db = new AlfredDB("repeat");
+    await seedBase(db);
+    const s = await startSession(db, "2026-10-05", "push");
+    const e = s.entries[0];
+    await updateSet(db, s.id, e.id, e.sets[0].id, { weight: 75, reps: 7, done: true });
+    await repeatLastSet(db, s.id, e.id);
+    let after = (await db.sessions.get(s.id))!.entries[0];
+    expect(after.sets[1]).toMatchObject({ weight: 75, reps: 7, done: true });
+    await repeatLastSet(db, s.id, e.id);
+    await repeatLastSet(db, s.id, e.id);
+    after = (await db.sessions.get(s.id))!.entries[0];
+    expect(after.sets).toHaveLength(4);
+    expect(after.sets.every((x) => x.done && x.weight === 75)).toBe(true);
   });
 });

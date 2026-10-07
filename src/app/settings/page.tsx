@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { ChevronRight, Download, KeyRound, Upload } from "lucide-react";
+import { Apple, ChevronRight, Download, Dumbbell, Gauge, KeyRound, ListChecks, Target, Upload } from "lucide-react";
 import { Page, SectionTitle } from "@/components/shell/page";
 import { updateSettings, useApp, useSettings } from "@/components/providers/app-provider";
 import { Button } from "@/components/ui/button";
-import { Field, NumberField, Segmented, TextInput, Toggle } from "@/components/ui/controls";
+import { Segmented, TextInput } from "@/components/ui/controls";
 import { Sheet } from "@/components/ui/sheet";
 import { useToast } from "@/components/ui/toast";
-import { downloadText, exportBackup, exportFoodCsv, exportSetsCsv, importBackup, parseBackup, type Backup } from "@/lib/db/backup";
+import { backupNow, exportFoodCsv, exportSetsCsv, importBackup, parseBackup, shareOrSave, type Backup } from "@/lib/db/backup";
+import { formatDistanceToNowStrict } from "date-fns";
 import { today } from "@/lib/domain/dates";
 import type { Unit } from "@/lib/domain/types";
 import { isOwnerDevice } from "@/lib/mode";
@@ -31,59 +32,30 @@ export default function SettingsPage() {
             { value: "lb", label: "Pounds" },
           ]}
         />
-        <p className="mt-2.5 text-sm text-fog">
-          Switch any time. Every set keeps the unit you logged it in, so nothing drifts from rounding.
-        </p>
       </div>
+      <p className="mt-2 px-4 text-xs text-fog">
+        Switch any time. Every set keeps the unit you logged it in, so nothing drifts from rounding.
+      </p>
 
       <SectionTitle>Training</SectionTitle>
-      <div className="panel divide-steel">
-        <LinkRow href="/settings/templates" label="Workout templates" detail="Exercises, sets, reps and weights per day" />
-        <LinkRow href="/settings/exercises" label="Exercise library" detail="Muscles each exercise trains" />
-        <LinkRow href="/body?targets=1" label="Weekly set targets" detail="Per muscle group" />
-        <div className="grid grid-cols-2 gap-3 p-4">
-          <Field label="Rest, compound (s)">
-            <NumberField
-              label="Compound rest seconds"
-              value={settings.restSeconds}
-              step={15}
-              min={15}
-              max={600}
-              onChange={(v) => v && updateSettings(db, { restSeconds: v })}
-            />
-          </Field>
-          <Field label="Rest, isolation (s)">
-            <NumberField
-              label="Isolation rest seconds"
-              value={settings.restSecondsIsolation}
-              step={15}
-              min={15}
-              max={600}
-              onChange={(v) => v && updateSettings(db, { restSecondsIsolation: v })}
-            />
-          </Field>
-        </div>
-        <div className="flex items-center justify-between gap-4 p-4">
-          <div>
-            <p className="text-[15px]">Vibrate when rest ends</p>
-            <p className="text-sm text-fog">Works on Android. iOS web apps can&apos;t vibrate, so you get a sound instead.</p>
-          </div>
-          <Toggle label="Vibrate when rest ends" checked={settings.haptics} onChange={(haptics) => updateSettings(db, { haptics })} />
-        </div>
-      </div>
+      <ul className="panel divide-steel">
+        <LinkRow href="/settings/templates" icon={<ListChecks />} tint="bg-signal/20 text-signal" label="Workout templates" />
+        <LinkRow href="/settings/exercises" icon={<Dumbbell />} tint="bg-ice/20 text-ice" label="Exercise library" />
+        <LinkRow href="/body?targets=1" icon={<Target />} tint="bg-verdigris/20 text-verdigris" label="Weekly set targets" />
+      </ul>
 
       <SectionTitle>Nutrition</SectionTitle>
-      <div className="panel divide-steel">
-        <LinkRow href="/fuel/goals" label="Goal & targets" detail="Phase, stats, calories and macros" />
-        <LinkRow href="/fuel/foods" label="Foods & saved meals" detail="Quick-add library" />
-      </div>
+      <ul className="panel divide-steel">
+        <LinkRow href="/fuel/goals" icon={<Gauge />} tint="bg-ochre/20 text-ochre" label="Goal & targets" />
+        <LinkRow href="/fuel/foods" icon={<Apple />} tint="bg-crimson/20 text-[#f3a59e]" label="Foods & saved meals" />
+      </ul>
 
       <DataSection />
       <AccessSection />
 
       <p className="mt-10 text-center text-xs text-fog">
         Alfred · build {process.env.NEXT_PUBLIC_BUILD_ID?.slice(0, 7)} ·{" "}
-        <Link href="/about" className="underline underline-offset-2">
+        <Link href="/about" className="text-signal">
           About
         </Link>
       </p>
@@ -91,20 +63,24 @@ export default function SettingsPage() {
   );
 }
 
-function LinkRow({ href, label, detail }: { href: string; label: string; detail: string }) {
+function LinkRow({ href, label, icon, tint }: { href: string; label: string; icon: React.ReactNode; tint: string }) {
   return (
-    <Link href={href} className="flex min-h-14 items-center gap-3 px-4 py-3 hover:bg-gunmetal-2/50">
-      <div className="min-w-0 flex-1">
-        <p className="text-[15px]">{label}</p>
-        <p className="truncate text-sm text-fog">{detail}</p>
-      </div>
-      <ChevronRight className="size-4 text-fog" />
-    </Link>
+    <li>
+      <Link href={href} className="flex min-h-[52px] items-center gap-3 px-4 py-2">
+        <span className={`grid size-[30px] shrink-0 place-items-center rounded-[8px] [&_svg]:size-[18px] ${tint}`}>{icon}</span>
+        <span className="min-w-0 flex-1 text-base">{label}</span>
+        <ChevronRight className="size-5 text-fog/70" />
+      </Link>
+    </li>
   );
 }
 
 function DataSection() {
   const { db, mode } = useApp();
+  const settings = useSettings();
+  const lastBackup = settings.lastBackupAt
+    ? `Last backup ${formatDistanceToNowStrict(settings.lastBackupAt, { addSuffix: true })}`
+    : "No backup yet";
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<Backup | null>(null);
@@ -122,27 +98,29 @@ function DataSection() {
     <>
       <SectionTitle>Your data</SectionTitle>
       <div className="panel p-4">
-        <p className="text-sm text-fog">
-          Everything lives on this device. iOS can clear website storage for apps you haven&apos;t opened in a while, so export a backup now
-          and then.
+        <p className="text-base">{lastBackup}</p>
+        <p className="mt-1 text-sm text-fog">
+          Everything lives on this device, and iOS can clear storage for web apps you haven&apos;t opened in a while. Alfred reminds you
+          weekly; on iPhone choose <span className="text-fog-2">Save to Files</span> to keep the backup in iCloud Drive.
         </p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           <Button
             variant="primary"
             onClick={async () => {
-              downloadText(`alfred-backup-${stamp}.json`, JSON.stringify(await exportBackup(db)));
-              toast({ message: "Backup exported." });
+              const r = await backupNow(db, stamp);
+              if (r !== "cancelled")
+                toast({ message: r === "shared" ? "Backup ready. Choose Save to Files to keep it in iCloud." : "Backup downloaded." });
             }}
           >
-            <Download className="size-4" /> Export backup (JSON)
+            <Download className="size-4" /> Back up now
           </Button>
           <Button onClick={() => fileRef.current?.click()}>
             <Upload className="size-4" /> Import backup
           </Button>
-          <Button variant="ghost" onClick={async () => downloadText(`alfred-sets-${stamp}.csv`, await exportSetsCsv(db), "text/csv")}>
+          <Button variant="ghost" onClick={async () => shareOrSave(`alfred-sets-${stamp}.csv`, await exportSetsCsv(db), "text/csv")}>
             Sets as CSV
           </Button>
-          <Button variant="ghost" onClick={async () => downloadText(`alfred-food-${stamp}.csv`, await exportFoodCsv(db), "text/csv")}>
+          <Button variant="ghost" onClick={async () => shareOrSave(`alfred-food-${stamp}.csv`, await exportFoodCsv(db), "text/csv")}>
             Food log as CSV
           </Button>
         </div>

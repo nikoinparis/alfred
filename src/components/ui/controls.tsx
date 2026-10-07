@@ -1,7 +1,8 @@
 "use client";
 
 import { Minus, Plus } from "lucide-react";
-import { useState, type InputHTMLAttributes, type ReactNode } from "react";
+import { motion } from "motion/react";
+import { useId, useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 interface NumberFieldProps {
@@ -55,11 +56,14 @@ export function NumberField({
   };
 
   return (
-    <div className={cn("flex items-stretch rounded-[12px] border border-steel bg-night/60", className)}>
+    <div className={cn("flex items-stretch rounded-[12px] bg-white/[0.07] focus-within:bg-white/[0.1]", className)}>
       <button
         type="button"
         onClick={() => nudge(-1)}
-        className={cn("grid shrink-0 place-items-center text-fog active:bg-gunmetal-2", dense ? "w-8" : big ? "w-12" : "w-10")}
+        className={cn(
+          "grid shrink-0 place-items-center rounded-[12px] text-fog-2 active:bg-white/10",
+          dense ? "w-8" : big ? "w-12" : "w-10",
+        )}
         aria-label={`Decrease ${label}`}
       >
         <Minus className="size-4" />
@@ -75,7 +79,7 @@ export function NumberField({
           onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
           onFocus={(e) => e.target.select()}
           className={cn(
-            "readout w-full min-w-0 bg-transparent text-center outline-none placeholder:text-steel-2",
+            "readout w-full min-w-0 bg-transparent text-center outline-none placeholder:text-fog/50",
             big ? "py-2 text-[34px] font-semibold" : "py-2 text-2xl font-medium",
           )}
         />
@@ -84,7 +88,10 @@ export function NumberField({
       <button
         type="button"
         onClick={() => nudge(1)}
-        className={cn("grid shrink-0 place-items-center text-fog active:bg-gunmetal-2", dense ? "w-8" : big ? "w-12" : "w-10")}
+        className={cn(
+          "grid shrink-0 place-items-center rounded-[12px] text-fog-2 active:bg-white/10",
+          dense ? "w-8" : big ? "w-12" : "w-10",
+        )}
         aria-label={`Increase ${label}`}
       >
         <Plus className="size-4" />
@@ -106,25 +113,37 @@ interface SegmentedProps<T extends string> {
   size?: "sm" | "md";
 }
 
+/** Segmented control: the selected thumb slides between segments. */
 export function Segmented<T extends string>({ value, onChange, options, label, className, size = "md" }: SegmentedProps<T>) {
+  const id = useId();
   return (
-    <div role="radiogroup" aria-label={label} className={cn("flex rounded-[12px] border border-steel bg-night/60 p-1", className)}>
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          role="radio"
-          aria-checked={o.value === value}
-          onClick={() => onChange(o.value)}
-          className={cn(
-            "flex-1 rounded-[9px] px-3 font-medium transition-colors",
-            size === "sm" ? "h-8 text-sm" : "h-10 text-[15px]",
-            o.value === value ? "bg-gunmetal-2 text-bone shadow-[inset_0_0_0_1px_var(--steel-2)]" : "text-fog hover:text-fog-2",
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
+    <div role="radiogroup" aria-label={label} className={cn("flex rounded-[10px] bg-white/[0.07] p-[3px]", className)}>
+      {options.map((o) => {
+        const active = o.value === value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(o.value)}
+            className={cn(
+              "relative flex-1 rounded-[8px] px-3 font-semibold transition-colors",
+              size === "sm" ? "h-8 text-sm" : "h-9 text-sm",
+              active ? "text-bone" : "text-fog-2 hover:text-bone",
+            )}
+          >
+            {active && (
+              <motion.span
+                layoutId={`seg-${id}`}
+                className="absolute inset-0 rounded-[8px] bg-white/[0.16] shadow-[0_2px_8px_rgb(0_0_0_/_0.35),inset_0_0.5px_0_rgb(255_255_255_/_0.12)]"
+                transition={{ type: "spring", stiffness: 520, damping: 40 }}
+              />
+            )}
+            <span className="relative">{o.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -132,9 +151,9 @@ export function Segmented<T extends string>({ value, onChange, options, label, c
 export function Field({ label, hint, children, className }: { label: string; hint?: ReactNode; children: ReactNode; className?: string }) {
   return (
     <label className={cn("block", className)}>
-      <span className="mb-1.5 block text-sm text-fog-2">{label}</span>
+      <span className="mb-1.5 block px-1 text-sm text-fog">{label}</span>
       {children}
-      {hint && <span className="mt-1 block text-xs text-fog">{hint}</span>}
+      {hint && <span className="mt-1.5 block px-1 text-xs text-fog">{hint}</span>}
     </label>
   );
 }
@@ -143,7 +162,7 @@ export function TextInput({ className, ...props }: InputHTMLAttributes<HTMLInput
   return (
     <input
       className={cn(
-        "h-11 w-full rounded-[12px] border border-steel bg-night/60 px-3 text-[15px] outline-none placeholder:text-fog/60 focus:border-signal/60",
+        "h-11 w-full rounded-[12px] bg-white/[0.07] px-3.5 text-base outline-none ring-signal/60 placeholder:text-fog/70 focus:bg-white/[0.1] focus:ring-1",
         className,
       )}
       {...props}
@@ -151,6 +170,7 @@ export function TextInput({ className, ...props }: InputHTMLAttributes<HTMLInput
   );
 }
 
+/** Switch with the HIG's 51×31 pt proportions. */
 export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <button
@@ -160,14 +180,14 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
       aria-label={label}
       onClick={() => onChange(!checked)}
       className={cn(
-        "relative h-7 w-12 shrink-0 rounded-full border transition-colors",
-        checked ? "border-signal bg-signal/90" : "border-steel-2 bg-gunmetal-2",
+        "relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors duration-200",
+        checked ? "bg-signal" : "bg-white/[0.16]",
       )}
     >
       <span
         className={cn(
-          "absolute left-0 top-0.5 size-[22px] rounded-full transition-transform duration-200",
-          checked ? "translate-x-[22px] bg-signal-ink" : "translate-x-0.5 bg-fog-2",
+          "absolute left-[2px] top-[2px] size-[27px] rounded-full bg-white shadow-[0_3px_8px_rgb(0_0_0_/_0.3)] transition-transform duration-200 ease-[var(--ease-spring)]",
+          checked ? "translate-x-5" : "translate-x-0",
         )}
       />
     </button>

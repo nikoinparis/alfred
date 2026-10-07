@@ -6,9 +6,8 @@ import { MealEstimateSchema, sanitize, VISION_PROMPT, type MealEstimate } from "
 export type VisionProvider = "anthropic" | "gemini";
 
 export interface VisionInput {
-  /** Base64 JPEG/PNG/WebP without the data: prefix. */
-  data: string;
-  mediaType: "image/jpeg" | "image/png" | "image/webp";
+  /** Base64 JPEG/PNG/WebP without the data: prefix. Optional: a description alone works too. */
+  image?: { data: string; mediaType: "image/jpeg" | "image/png" | "image/webp" };
   note?: string;
 }
 
@@ -31,8 +30,10 @@ export function configuredProvider(): VisionProvider | null {
   return null;
 }
 
-function userText(note?: string) {
-  return note?.trim() ? `Estimate this meal. Context from me: ${note.trim().slice(0, 300)}` : "Estimate this meal.";
+function userText(input: VisionInput) {
+  const note = input.note?.trim().slice(0, 600);
+  if (!input.image) return `No photo. Estimate from my description: ${note}`;
+  return note ? `Estimate the meal in this photo. What it is, from me: ${note}` : "Estimate the meal in this photo.";
 }
 
 /** Models that accept the server-side `fallbacks: "default"` refusal routing. */
@@ -52,8 +53,10 @@ async function estimateWithClaude(input: VisionInput): Promise<{ estimate: MealE
         {
           role: "user",
           content: [
-            { type: "image", source: { type: "base64", media_type: input.mediaType, data: input.data } },
-            { type: "text", text: userText(input.note) },
+            ...(input.image
+              ? [{ type: "image" as const, source: { type: "base64" as const, media_type: input.image.mediaType, data: input.image.data } }]
+              : []),
+            { type: "text" as const, text: userText(input) },
           ],
         },
       ],
@@ -87,9 +90,9 @@ async function estimateWithGemini(input: VisionInput): Promise<{ estimate: MealE
         {
           role: "user",
           parts: [
-            { inlineData: { mimeType: input.mediaType, data: input.data } },
+            ...(input.image ? [{ inlineData: { mimeType: input.image.mediaType, data: input.image.data } }] : []),
             {
-              text: `${userText(input.note)}\nReply with JSON only: {"items":[{"name","portion","grams","kcal","protein","carbs","fat","confidence"}],"kcalLow","kcalHigh","confidence","notes"}`,
+              text: `${userText(input)}\nReply with JSON only: {"items":[{"name","portion","grams","kcal","protein","carbs","fat","confidence"}],"kcalLow","kcalHigh","confidence","notes"}`,
             },
           ],
         },

@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Plus, Search, Star, Trash2, X } from "lucide-react";
+import { Plus, Search, Star, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useApp } from "@/components/providers/app-provider";
 import { Page, SectionTitle } from "@/components/shell/page";
@@ -32,14 +31,7 @@ export default function FoodsPage() {
     .sort((a, b) => Number(b.favorite) - Number(a.favorite) || a.name.localeCompare(b.name));
 
   return (
-    <Page
-      title="Foods & meals"
-      actions={
-        <Link href="/fuel" className="mb-0.5 flex items-center gap-1 text-sm text-fog hover:text-bone">
-          <ArrowLeft className="size-4" /> Fuel
-        </Link>
-      }
-    >
+    <Page title="Foods & meals" back={{ href: "/fuel", label: "Fuel" }}>
       <Segmented<Tab>
         label="Library"
         value={tab}
@@ -67,7 +59,7 @@ export default function FoodsPage() {
             </Button>
           </div>
           <p className="mt-2 text-xs text-fog">
-            Starred foods appear in Quick add. Indonesian staples are pre-loaded with typical values; edit them to match your warung.
+            Starred foods show first when you search. Indonesian staples are pre-loaded with typical values; edit them to match your warung.
           </p>
           <ul className="panel divide-steel mt-3">
             {list.map((f) => (
@@ -87,7 +79,7 @@ export default function FoodsPage() {
                   className="flex min-h-14 min-w-0 flex-1 items-center gap-3 py-2.5 pr-4 text-left"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px]">{f.name}</span>
+                    <span className="block truncate text-base">{f.name}</span>
                     <span className="text-xs text-fog">
                       {f.serving} · {f.protein}P {f.carbs}C {f.fat}F
                     </span>
@@ -115,7 +107,7 @@ export default function FoodsPage() {
                       className="flex min-h-14 w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-gunmetal-2/40"
                     >
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[15px]">{m.name}</span>
+                        <span className="block truncate text-base">{m.name}</span>
                         <span className="block truncate text-xs text-fog">
                           {m.items
                             .map((i) => byId[i.foodId]?.name)
@@ -202,8 +194,8 @@ function FoodEditor({ initial, isNew, onClose }: { initial: Food; isNew: boolean
           </Field>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-sm text-fog-2">Show in Quick add</span>
-          <Toggle label="Show in Quick add" checked={f.favorite} onChange={(favorite) => set({ favorite })} />
+          <span className="text-sm text-fog-2">Favourite (shows first in search)</span>
+          <Toggle label="Favourite" checked={f.favorite} onChange={(favorite) => set({ favorite })} />
         </div>
       </div>
     </Sheet>
@@ -260,7 +252,7 @@ function MealEditor({ initial, foods, onClose }: { initial: SavedMeal; foods: Fo
             <ul className="panel divide-steel mb-3">
               {m.items.map((it, i) => (
                 <li key={`${it.foodId}-${i}`} className="flex items-center gap-2 py-2 pl-4 pr-2">
-                  <span className="min-w-0 flex-1 truncate text-[15px]">{byId[it.foodId]?.name ?? "Deleted food"}</span>
+                  <span className="min-w-0 flex-1 truncate text-base">{byId[it.foodId]?.name ?? "Deleted food"}</span>
                   <NumberField
                     label="Servings"
                     value={it.servings}

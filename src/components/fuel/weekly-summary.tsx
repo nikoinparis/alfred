@@ -60,7 +60,7 @@ export function WeeklySummary({ logs, endDate, targets }: { logs: FoodLog[]; end
                 if (!active || !payload?.length) return null;
                 const p = payload[0].payload as (typeof data)[number];
                 return (
-                  <div className="rounded-[10px] border border-steel-2 bg-gunmetal-2 px-3 py-2 text-sm shadow-xl">
+                  <div className="material rounded-[12px] px-3 py-2 ring-[0.5px] ring-white/10 text-sm shadow-xl">
                     <p className="text-xs text-fog">{format(parseISODate(p.date), "EEE d MMM")}</p>
                     <p>
                       <span className="readout text-lg">{p.kcal}</span> kcal · {p.protein} g protein

@@ -16,7 +16,7 @@ function ChartTooltip({ active, payload, unit }: { active?: boolean; payload?: {
   if (!active || !payload?.length) return null;
   const p = payload[0].payload;
   return (
-    <div className="rounded-[10px] border border-steel-2 bg-gunmetal-2 px-3 py-2 shadow-xl">
+    <div className="material rounded-[12px] px-3 py-2 ring-[0.5px] ring-white/10 shadow-xl">
       <p className="text-xs text-fog">{format(parseISODate(p.date), "EEE d MMM yyyy")}</p>
       <p className="readout mt-0.5 text-xl font-semibold text-bone">
         {formatNumber(p.value)} <span className="text-sm font-normal text-fog">{unit}</span>

@@ -5,8 +5,6 @@ import type { GoalSettings, MacroTargets, Profile } from "@/lib/domain/nutrition
 export interface Settings {
   id: "app";
   unit: Unit;
-  restSeconds: number;
-  restSecondsIsolation: number;
   maxConsecutive: number;
   profile: Profile | null;
   goal: GoalSettings | null;
@@ -15,7 +13,10 @@ export interface Settings {
   /** Calorie tweak applied by accepted weekly check-ins. */
   kcalAdjustment: number;
   lastCheckIn?: string;
-  haptics: boolean;
+  /** When the last JSON backup was exported (ms). */
+  lastBackupAt?: number;
+  /** "Remind me later" on the backup nudge (ms). */
+  backupSnoozeUntil?: number;
   /** "2d" | "3d" body view preference. */
   bodyView: "2d" | "3d";
 }
@@ -118,13 +119,10 @@ export type TableName = (typeof TABLES)[number];
 export const DEFAULT_SETTINGS: Settings = {
   id: "app",
   unit: "kg",
-  restSeconds: 150,
-  restSecondsIsolation: 90,
   maxConsecutive: 3,
   profile: null,
   goal: null,
   macroOverride: null,
   kcalAdjustment: 0,
-  haptics: true,
   bodyView: "2d",
 };

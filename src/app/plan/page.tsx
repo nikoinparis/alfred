@@ -152,12 +152,12 @@ export default function PlanPage() {
             icon={streak > 0 ? <Flame className="size-4 text-signal" /> : undefined}
           />
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-3 border-t border-steel pt-4">
+        <div className="mt-4 grid grid-cols-2 gap-3 border-t border-separator pt-4">
           <Balance label="Push vs pull" a={review.pushSets} b={review.pullSets} aLabel="push" bLabel="pull" />
           <Balance label="Quads vs hams" a={review.quadSets} b={review.hamstringSets} aLabel="quads" bLabel="hams" />
         </div>
         {review.notes.length > 0 && (
-          <ul className="mt-4 space-y-1.5 border-t border-steel pt-3 text-sm text-fog-2">
+          <ul className="mt-4 space-y-1.5 border-t border-separator pt-3 text-sm text-fog-2">
             {review.notes.map((n) => (
               <li key={n}>{n}</li>
             ))}
@@ -202,16 +202,20 @@ export default function PlanPage() {
       </Sheet>
 
       <Sheet open={rulesOpen} onClose={() => setRulesOpen(false)} title="How suggestions work">
-        <ol className="list-decimal space-y-2.5 pl-5 text-[15px] leading-relaxed text-fog-2">
+        <ol className="list-decimal space-y-2.5 pl-5 text-base leading-relaxed text-fog-2">
           <li>
-            The base cycle is Push → Pull → Legs → Rest → Upper → Lower → Rest. Alfred continues from the last day you actually trained, not
-            from the calendar.
+            Your split is two blocks: Push, Pull and Legs in any order, then Upper and Lower in either order. Finishing a block earns a rest
+            day.
           </li>
-          <li>Missed or skipped days count as rest. If you owed a training day, it&apos;s still next, not skipped over.</li>
+          <li>
+            Alfred follows what you actually trained. Start with Legs and it suggests Push and Pull next; do Lower first and Upper is next,
+            not rest.
+          </li>
+          <li>Missed or skipped days count as rest. Days you still owe in a block stay owed.</li>
           <li>Never more than {settings.maxConsecutive} training days in a row, counting days you&apos;ve already planned.</li>
           <li>
-            Never the same muscle group on back-to-back days (Upper overlaps both Push and Pull; Legs and Lower overlap). If the
-            cycle&apos;s pick would clash, it jumps to the next day type that doesn&apos;t.
+            Never the same muscle group on back-to-back days (Upper overlaps Push and Pull; Legs and Lower overlap). If the next pick would
+            clash, it takes another day from the block.
           </li>
           <li>Suggestions are ghosts until you accept them. Pick any day type on the day itself and everything after re-plans.</li>
         </ol>
@@ -267,11 +271,11 @@ function DayCard({
     <div
       className={cn(
         "relative flex min-h-[64px] items-center gap-3 rounded-[12px] border px-3 py-2 md:min-h-[140px] md:flex-col md:items-start md:gap-2 md:p-3",
-        state.kind === "done" && state.dayType !== "rest" && "border-steel-2 bg-gunmetal-2",
-        state.kind === "done" && state.dayType === "rest" && "border-steel bg-gunmetal",
-        state.kind === "planned" && "border-steel-2 bg-gunmetal",
-        state.kind === "ghost" && "border-dashed border-steel-2 bg-transparent",
-        (state.kind === "missed" || state.kind === "skipped" || state.kind === "empty") && "border-steel/60 bg-transparent",
+        state.kind === "done" && state.dayType !== "rest" && "border-transparent bg-gunmetal-2",
+        state.kind === "done" && state.dayType === "rest" && "border-transparent bg-gunmetal",
+        state.kind === "planned" && "border-transparent bg-gunmetal",
+        state.kind === "ghost" && "border-dashed border-white/15 bg-transparent",
+        (state.kind === "missed" || state.kind === "skipped" || state.kind === "empty") && "border-separator bg-transparent",
         isToday && "ring-1 ring-signal/70",
       )}
     >
@@ -311,7 +315,7 @@ function DayCard({
             exit={{ opacity: 0 }}
             type="button"
             onClick={onAccept}
-            className="relative z-[1] h-10 shrink-0 rounded-[10px] border border-steel-2 px-3 text-sm text-fog-2 hover:border-signal hover:text-bone md:mt-auto md:w-full"
+            className="relative z-[1] h-9 shrink-0 rounded-full bg-signal-soft px-4 text-sm font-semibold text-signal active:opacity-70 md:mt-auto md:w-full"
           >
             Accept
           </motion.button>
@@ -352,8 +356,8 @@ function DayEditor({
                 type="button"
                 onClick={() => onPick(d)}
                 className={cn(
-                  "flex h-14 flex-col items-center justify-center rounded-[12px] border text-[15px] font-medium",
-                  d === current ? "border-signal bg-signal-soft text-bone" : "border-steel bg-gunmetal text-fog-2",
+                  "flex h-14 flex-col items-center justify-center rounded-[12px] border text-base font-medium",
+                  d === current ? "border-transparent bg-signal-soft text-signal" : "border-transparent bg-white/[0.07] text-fog-2",
                 )}
               >
                 {DAY_LABEL[d]}

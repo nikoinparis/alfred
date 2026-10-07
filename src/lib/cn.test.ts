@@ -4,6 +4,6 @@ import { cn } from "./cn";
 describe("cn", () => {
   it("keeps custom text colours alongside font sizes", () => {
     expect(cn("text-signal-ink text-base")).toBe("text-signal-ink text-base");
-    expect(cn("text-fog text-[15px]", "text-bone")).toBe("text-[15px] text-bone");
+    expect(cn("text-fog text-base", "text-bone")).toBe("text-base text-bone");
   });
 });

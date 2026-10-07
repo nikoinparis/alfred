@@ -73,7 +73,7 @@ function FoodList({ onPick }: { onPick: (f: Food) => void }) {
               className="flex min-h-14 w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-gunmetal-2/40"
             >
               <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1.5 text-[15px]">
+                <span className="flex items-center gap-1.5 text-base">
                   <span className="truncate">{f.name}</span>
                   {f.favorite && <Star className="size-3 shrink-0 fill-signal text-signal" aria-label="Favourite" />}
                 </span>
@@ -117,7 +117,7 @@ function ServingPicker({ food, date, onBack, onDone }: { food: Food; date: strin
             onClick={() => setServings(v)}
             className={cn(
               "h-10 rounded-full border px-4 text-sm",
-              servings === v ? "border-signal bg-signal-soft text-bone" : "border-steel text-fog-2",
+              servings === v ? "border-transparent bg-signal-soft text-signal" : "border-transparent bg-white/[0.07] text-fog-2",
             )}
           >
             {v}×
@@ -146,7 +146,7 @@ function ServingPicker({ food, date, onBack, onDone }: { food: Food; date: strin
         className="flex items-center gap-2 text-sm text-fog hover:text-bone"
       >
         <Star className={cn("size-4", live.favorite && "fill-signal text-signal")} />
-        {live.favorite ? "Remove from quick-add" : "Add to quick-add"}
+        {live.favorite ? "Remove from favourites" : "Add to favourites"}
       </button>
     </div>
   );
@@ -178,7 +178,7 @@ function MealList({ date, onDone }: { date: string; onDone: () => void }) {
               className="flex min-h-14 w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-gunmetal-2/40"
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[15px]">{m.name}</span>
+                <span className="block truncate text-base">{m.name}</span>
                 <span className="block truncate text-sm text-fog">
                   {m.items
                     .map((i) => foods[i.foodId]?.name)
@@ -229,7 +229,7 @@ function ManualEntry({ date, onDone }: { date: string; onDone: () => void }) {
         </Field>
       </div>
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm text-fog-2">Save as a food for quick-add</span>
+        <span className="text-sm text-fog-2">Save to my foods</span>
         <Toggle label="Save as a food" checked={save} onChange={setSave} />
       </div>
       <Button

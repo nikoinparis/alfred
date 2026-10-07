@@ -22,13 +22,14 @@ export const MealEstimateSchema = z.object({
 
 export type MealEstimate = z.infer<typeof MealEstimateSchema>;
 
-export const VISION_PROMPT = `You estimate nutrition from a meal photo for a lifter tracking macros.
+export const VISION_PROMPT = `You estimate nutrition for a lifter tracking macros, from a meal photo, a short description, or both.
 
-Identify each distinct food item. For each, estimate the portion in grams using visual cues (plate ~26 cm, spoon, hand, packaging), then calories and protein/carbs/fat in grams.
-Be realistic about hidden calories: cooking oil, coconut milk, sambal, peanut sauce, sugar in drinks. Indonesian dishes are common (nasi, ayam goreng/bakar, tempe, tahu, rendang, sate, gado-gado, mie): use typical warung preparations.
-Give each item a 0-1 confidence and the whole meal a calorie range (kcalLow-kcalHigh) that would contain the true value ~80% of the time. Wider range when portions are hidden or the photo is unclear.
-If the photo has no food, return an empty items list, confidence 0, and say so in notes.
-Keep notes to one or two short sentences.`;
+Treat the person's description as authoritative: if they name a brand or product (e.g. "Kellogg's Corn Flakes", "Indomie goreng", "Optimum Nutrition whey"), use that product's published nutrition label per serving and scale it to the amount shown or stated. If they state an amount (grams, cups, pieces, ml of milk), use it instead of guessing.
+Otherwise identify each distinct food item and estimate the portion in grams from visual cues (plate ~26 cm, bowl, spoon, hand, packaging).
+Be realistic about hidden calories: cooking oil, coconut milk, sambal, peanut sauce, butter, sugar in drinks, milk added to cereal. Indonesian dishes are common (nasi, ayam goreng/bakar, tempe, tahu, rendang, sate, gado-gado, mie): use typical warung preparations.
+Give each item a 0-1 confidence and the whole meal a calorie range (kcalLow-kcalHigh) that would contain the true value ~80% of the time. Narrow the range when a brand and amount are given; widen it when portions are hidden or the photo is unclear.
+If there is no food, return an empty items list, confidence 0, and say so in notes.
+Keep notes to one or two short sentences, and mention the one detail that would most improve the estimate if it's missing.`;
 
 /** Example used in demo mode so the flow can be tried without spending API credits. */
 export const DEMO_ESTIMATE: MealEstimate = {

@@ -76,8 +76,10 @@ export function TodayStart({ date, planned, suggestion, templates, exercises, re
               aria-checked={active}
               onClick={() => setSelected(d)}
               className={cn(
-                "relative h-12 shrink-0 rounded-[12px] border px-4 text-[15px] font-medium transition-colors",
-                active ? "border-signal bg-signal-soft text-bone" : "border-steel bg-gunmetal text-fog-2 hover:border-steel-2",
+                "relative h-11 shrink-0 rounded-full border px-4 text-base font-semibold transition-colors",
+                active
+                  ? "border-transparent bg-signal-soft text-signal"
+                  : "border-transparent bg-white/[0.07] text-fog-2 hover:bg-white/[0.1]",
               )}
             >
               {DAY_LABEL[d]}
@@ -100,7 +102,7 @@ export function TodayStart({ date, planned, suggestion, templates, exercises, re
         className="mt-6"
       >
         <h2 className="readout text-[84px] font-bold uppercase leading-[0.8] tracking-tight md:text-[112px]">{DAY_LABEL[selected]}</h2>
-        {reason && <p className="mt-3 max-w-md text-[15px] text-fog-2">{reason}</p>}
+        {reason && <p className="mt-3 max-w-md text-base text-fog-2">{reason}</p>}
 
         <ul className="panel divide-steel mt-6">
           {template?.slots.map((slot, i) => {
@@ -110,7 +112,7 @@ export function TodayStart({ date, planned, suggestion, templates, exercises, re
             return (
               <li key={slot.id} className="flex min-h-16 items-center gap-3 px-4 py-3">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[15px]">{ex?.name ?? slot.exerciseId}</p>
+                  <p className="truncate text-base">{ex?.name ?? slot.exerciseId}</p>
                   <p className="text-sm text-fog">
                     {ex?.isConditioning
                       ? "Recovery"

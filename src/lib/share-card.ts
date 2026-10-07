@@ -20,7 +20,7 @@ export async function renderShareCard(
   const g = c.getContext("2d")!;
   const root = getComputedStyle(document.documentElement);
   const display = root.getPropertyValue("--font-saira").trim() || "sans-serif";
-  const body = root.getPropertyValue("--font-plex").trim() || "sans-serif";
+  const body = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
   await document.fonts?.ready;
 
   const bg = g.createRadialGradient(W / 2, -200, 100, W / 2, 0, 1400);

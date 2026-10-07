@@ -110,6 +110,20 @@ describe("suggestOverload", () => {
     expect(r.action).toBe("hold");
   });
 
+  it("jumps two increments when every set was rated easy (RPE ≤ 7)", () => {
+    const r = suggestOverload({
+      ...base,
+      history: hist("chest-press", [[s(72.5, 8, { rpe: 7 }), s(72.5, 8, { rpe: 6 }), s(72.5, 8, { rpe: 7 })]]),
+    });
+    expect(r).toMatchObject({ action: "increase", weight: 80.5 });
+    expect(r.reason).toMatch(/two steps/);
+  });
+
+  it("takes a single step when only some sets were rated", () => {
+    const r = suggestOverload({ ...base, history: hist("chest-press", [[s(72.5, 8, { rpe: 6 }), s(72.5, 8), s(72.5, 8)]]) });
+    expect(r.weight).toBe(76.5);
+  });
+
   it("does not increase when fewer sets than planned were done", () => {
     const r = suggestOverload({ ...base, history: hist("chest-press", [[s(72.5, 8), s(72.5, 8)]]) });
     expect(r.action).toBe("hold");

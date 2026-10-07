@@ -106,3 +106,45 @@ export function downloadText(filename: string, text: string, type = "application
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/**
+ * Hand a file to the OS. On iPhone this opens the share sheet, where "Save to Files"
+ * puts the backup in iCloud Drive; elsewhere it falls back to a normal download.
+ */
+export async function shareOrSave(
+  filename: string,
+  text: string,
+  type = "application/json",
+): Promise<"shared" | "downloaded" | "cancelled"> {
+  const file = new File([text], filename, { type });
+  if (typeof navigator !== "undefined" && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: filename });
+      return "shared";
+    } catch (e) {
+      if ((e as Error).name === "AbortError") return "cancelled";
+    }
+  }
+  downloadText(filename, text, type);
+  return "downloaded";
+}
+
+/** Export everything, record when, and return how it went. */
+export async function backupNow(db: AlfredDB, date: string) {
+  const result = await shareOrSave(`alfred-backup-${date}.json`, JSON.stringify(await exportBackup(db)));
+  if (result !== "cancelled") {
+    const current = await db.settings.get("app");
+    if (current) await db.settings.put({ ...current, lastBackupAt: Date.now(), backupSnoozeUntil: undefined });
+  }
+  return result;
+}
+
+export const BACKUP_INTERVAL_DAYS = 7;
+
+/** Whether to nudge for a backup: there's real data and the last backup is over a week old (or never). */
+export function backupDue(opts: { lastBackupAt?: number; snoozeUntil?: number; sessions: number; now: number }): boolean {
+  if (opts.sessions < 2) return false;
+  if (opts.snoozeUntil && opts.snoozeUntil > opts.now) return false;
+  if (!opts.lastBackupAt) return true;
+  return opts.now - opts.lastBackupAt > BACKUP_INTERVAL_DAYS * 86_400_000;
+}

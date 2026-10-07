@@ -80,18 +80,30 @@ describe("suggestPlan", () => {
     expect(plan[0].dayType).toBe("rest");
   });
 
-  it("avoids a conflict with a fixed next day by jumping ahead in the cycle", () => {
-    // Today's cycle pick is Pull, but tomorrow is planned Upper (shares pull muscles).
+  it("avoids a conflict with a fixed next day by picking another day from the block", () => {
+    // Pull would be next, but tomorrow is planned Upper (shares pull muscles).
     const logs: DayLog[] = [done(MON, "push"), { date: "2026-10-07", dayType: "upper", status: "planned" }];
     const plan = suggestPlan({ today: "2026-10-06", until: "2026-10-06", logs });
     expect(plan[0].dayType).toBe("legs");
-    expect(plan[0].reason).toMatch(/jumps to Legs/);
   });
 
-  it("re-plans after a swap: doing Lower on a Legs day keeps the cycle moving", () => {
+  it("treats Push/Pull/Legs as one block in any order", () => {
+    const plan = suggestPlan({ today: "2026-10-06", until: "2026-10-08", logs: [done(MON, "legs")] });
+    expect(types(plan)).toEqual(["push", "pull", "rest"]);
+    const plan2 = suggestPlan({ today: "2026-10-07", until: "2026-10-08", logs: [done(MON, "pull"), done("2026-10-06", "legs")] });
+    expect(types(plan2)).toEqual(["push", "rest"]);
+  });
+
+  it("starting with Lower suggests Upper next, not rest", () => {
+    const plan = suggestPlan({ today: "2026-10-06", until: "2026-10-08", logs: [done(MON, "lower")] });
+    expect(types(plan)).toEqual(["upper", "rest", "push"]);
+  });
+
+  it("switching blocks mid-way starts the new block", () => {
     const logs = [done(MON, "push"), done("2026-10-06", "pull"), done("2026-10-07", "lower")];
     const plan = suggestPlan({ today: "2026-10-08", until: SUN, logs });
-    expect(types(plan)).toEqual(["rest", "push", "pull", "legs"]);
+    // Three in a row forces rest; Upper finishes the Upper/Lower block, then rest, then PPL.
+    expect(types(plan)).toEqual(["rest", "upper", "rest", "push"]);
   });
 });
 

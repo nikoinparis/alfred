@@ -91,31 +91,38 @@ class GeminiBusy extends VisionError {}
  */
 async function estimateWithGemini(input: VisionInput): Promise<{ estimate: MealEstimate; model: string }> {
   const primary = process.env.GEMINI_VISION_MODEL || "gemini-flash-latest";
-  const fallbacks = (process.env.GEMINI_FALLBACK_MODELS ?? "gemini-flash-latest,gemini-flash-lite-latest")
+  // Lite first: it shares less capacity with the main Flash model, so it's often free when Flash is busy.
+  const fallbacks = (process.env.GEMINI_FALLBACK_MODELS ?? "gemini-flash-lite-latest,gemini-flash-latest")
     .split(",")
     .map((m) => m.trim())
     .filter(Boolean);
-  const models = [...new Set([primary, ...fallbacks])];
+  let models = [...new Set([primary, ...fallbacks])];
   const deadline = Date.now() + 50_000;
   let last: unknown;
-  for (const model of models) {
-    for (let attempt = 0; attempt < 2; attempt++) {
+  // Two rounds over all models: one quick try each, a short pause, then once more.
+  for (let round = 0; round < 2 && models.length; round++) {
+    if (round) await new Promise((r) => setTimeout(r, 2000));
+    for (const model of models) {
       if (Date.now() > deadline - 8_000) break;
       try {
         return await callGemini(input, model, Math.min(25_000, deadline - Date.now()));
       } catch (e) {
         last = e;
-        if (e instanceof GeminiBusy) {
-          await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)));
+        if (e instanceof GeminiBusy) continue;
+        // A retired or unknown model: drop it and move on.
+        if (e instanceof VisionError && e.status === 404) {
+          models = models.filter((m) => m !== model);
           continue;
         }
-        // A retired or unknown model: move on to the next one.
-        if (e instanceof VisionError && e.status === 404) break;
         throw e;
       }
     }
   }
-  if (last instanceof GeminiBusy) throw new VisionError("Gemini is busy right now. Try again in a minute, or log from My foods.", 503);
+  if (last instanceof GeminiBusy)
+    throw new VisionError(
+      "Google's Gemini servers are overloaded right now (free tier goes last). Try again in a few minutes, or log from My foods.",
+      503,
+    );
   throw last;
 }
 
@@ -140,7 +147,10 @@ async function callGemini(input: VisionInput, model: string, timeoutMs: number):
     }),
     signal: AbortSignal.timeout(timeoutMs),
   }).catch((e: unknown) => {
-    if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) throw new GeminiBusy("Gemini timed out.", 503);
+    if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
+      console.error(`Gemini ${model} timed out`);
+      throw new GeminiBusy("Gemini timed out.", 503);
+    }
     throw e;
   });
   if (!res.ok) console.error(`Gemini ${model} ${res.status}: ${(await res.clone().text()).slice(0, 300)}`);

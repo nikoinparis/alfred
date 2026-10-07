@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDays } from "./dates";
-import { bmrMifflin, computeTargets, tdee, weeklyCheckIn, weeklyRate, weightTrend, type Profile } from "./nutrition";
+import { bmrMifflin, computeTargets, goalProgress, tdee, weeklyCheckIn, weeklyRate, weightTrend, type Profile } from "./nutrition";
 
 const me: Profile = { sex: "male", age: 25, heightCm: 178, weightKg: 75, activity: "moderate" };
 
@@ -102,5 +102,38 @@ describe("weeklyCheckIn", () => {
 
   it("refuses to guess with too little data", () => {
     expect(weeklyCheckIn({ ...base, intakeDays: [2200], weighIns: losing(-0.5) }).status).toBe("insufficient-data");
+  });
+});
+
+describe("Nightwing goal", () => {
+  const owner: Profile = { sex: "male", age: 22, heightCm: 179, weightKg: 64.6, activity: "moderate" };
+  const goal = { preset: "nightwing" as const, phase: "bulk" as const, rateKgPerWeek: 0.25, targetWeightKg: 72 };
+
+  it("sets a modest surplus with 2 g/kg protein", () => {
+    const r = computeTargets(owner, goal);
+    expect(r.dailyDelta).toBe(275);
+    expect(r.proteinPerKg).toBe(2);
+    expect(r.targets.protein).toBe(129);
+    expect(r.targets.kcal).toBeGreaterThan(r.tdee);
+  });
+
+  it("tracks progress to the target weight", () => {
+    expect(goalProgress(64.6, goal)).toMatchObject({ reached: false, weeksLeft: 30 });
+    expect(goalProgress(71.9, goal)?.reached).toBe(true);
+    expect(goalProgress(70, { ...goal, phase: "maintain" })).toBeNull();
+  });
+
+  it("check-in says switch to maintenance once the trend reaches the target", () => {
+    const at72 = Array.from({ length: 14 }, (_, i) => ({ date: addDays("2026-09-01", i), kg: 72 + (i % 2) * 0.1 }));
+    const r = weeklyCheckIn({
+      goal,
+      targetRate: 0.25,
+      targetKcal: 2850,
+      weighIns: at72,
+      intakeDays: [2850, 2850, 2850, 2850],
+      asOf: "2026-09-14",
+      bodyweightKg: 72,
+    });
+    expect(r.status).toBe("goal-reached");
   });
 });

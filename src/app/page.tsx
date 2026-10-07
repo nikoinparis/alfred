@@ -51,7 +51,7 @@ export default function TodayPage() {
             <SessionView key={session.id} session={session} exercises={exercises} templates={templates} />
           ) : (
             <TodayStart
-              key={`${t}-${planned?.dayType ?? suggestion?.dayType}`}
+              key={t}
               date={t}
               planned={planned}
               suggestion={suggestion}

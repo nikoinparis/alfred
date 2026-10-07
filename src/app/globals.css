@@ -2,29 +2,31 @@
 
 /*
  * Alfred design tokens.
- * Gotham at night: blue-black base, grouped surfaces a step lighter, one signal-amber accent.
+ * Gotham at night: blue-black base, grouped surfaces a step lighter, one Nightwing-blue accent
+ * for everything interactive. Amber is reserved for "below target" so state colours never
+ * compete with actions.
  * Structure follows Apple's HIG for dark interfaces: content sits on grouped cells,
  * controls float on translucent material, secondary text stays readable (≥4.5:1).
  */
 :root {
-  --night: #07090c;
-  --kevlar: #0e1116;
-  --gunmetal: #14181f;
-  --gunmetal-2: #1c222b;
+  --night: #050608;
+  --kevlar: #0c0e12;
+  --gunmetal: #111419;
+  --gunmetal-2: #191d24;
   --steel: #262d38;
   --steel-2: #364050;
   --separator: rgb(120 132 150 / 0.22);
   --fog: #98a1ae;
   --fog-2: #c3c9d2;
   --bone: #eef0f3;
-  --signal: #e8b54e;
-  --signal-ink: #1a1203;
-  --signal-soft: rgb(232 181 78 / 0.14);
+  --signal: #3a86ff;
+  --signal-ink: #ffffff;
+  --signal-soft: rgb(58 134 255 / 0.16);
   --crimson: #d0544b;
   --ochre: #d6a03c;
   --verdigris: #45ab8d;
   --ice: #86acd0;
-  --material: rgb(16 19 24 / 0.72);
+  --material: rgb(14 16 20 / 0.86);
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -87,7 +89,7 @@
   }
 
   body {
-    background: radial-gradient(120% 50% at 50% -10%, rgb(134 172 208 / 0.06), transparent 60%), var(--night);
+    background: radial-gradient(90% 45% at 50% -12%, rgb(58 134 255 / 0.09), transparent 62%), var(--night);
     color: var(--bone);
     font-family: var(--font-sans);
     font-size: 1.0625rem;
@@ -156,8 +158,9 @@
     background: var(--gunmetal);
     border-radius: var(--radius-panel);
     box-shadow:
-      inset 0 0.5px 0 rgb(255 255 255 / 0.05),
-      0 0 0 0.5px rgb(255 255 255 / 0.035);
+      inset 0 1px 0 rgb(255 255 255 / 0.05),
+      0 0 0 1px rgb(255 255 255 / 0.055),
+      0 18px 40px -28px rgb(0 0 0 / 0.9);
   }
 
   /* Inset separators: start at the text, run to the trailing edge. */

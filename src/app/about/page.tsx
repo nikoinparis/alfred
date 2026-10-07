@@ -16,7 +16,7 @@ const FEATURES: [string, string][] = [
   ],
   [
     "Muscle heatmap",
-    "Hard sets per muscle per week from a data-driven exercise → muscle map (primary 1, secondary 0.5), on a 2D map and a rotatable anatomical 3D model built from real muscle meshes.",
+    "Hard sets per muscle per week from a data-driven exercise → muscle map (primary 1, secondary 0.5), shown on an anatomical figure built from real muscle meshes, front and back side by side.",
   ],
   [
     "Nutrition",

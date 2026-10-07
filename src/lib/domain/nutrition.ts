@@ -3,7 +3,7 @@ import { daysBetween } from "./dates";
 export type Sex = "male" | "female";
 export type Activity = "sedentary" | "light" | "moderate" | "very" | "athlete";
 export type Phase = "cut" | "bulk" | "recomp" | "maintain";
-export type GoalPreset = "lean" | "muscular" | "strong";
+export type GoalPreset = "nightwing" | "lean" | "muscular" | "strong";
 
 export const ACTIVITY_FACTOR: Record<Activity, number> = {
   sedentary: 1.2,
@@ -32,6 +32,15 @@ export interface PresetMeta {
 }
 
 export const PRESETS: Record<GoalPreset, PresetMeta> = {
+  nightwing: {
+    label: "Nightwing",
+    blurb:
+      "Lean, acrobatic and strong for your size: wide lats and shoulders, tight waist, athletic legs. Lean-bulk slowly to your target weight, then hold it.",
+    proteinPerKg: 2.0,
+    fatPerKg: 0.8,
+    defaultPhase: "bulk",
+    defaultRatePct: 0.35,
+  },
   lean: {
     label: "Lean / athletic",
     blurb: "Visible abs, athletic shape. Prioritises staying lean while keeping strength.",
@@ -71,7 +80,47 @@ export interface GoalSettings {
   phase: Phase;
   /** kg per week; negative for loss. */
   rateKgPerWeek: number;
+  /** The "sweet spot": when a bulk or cut reaches this weight, switch to maintenance. */
+  targetWeightKg?: number;
 }
+
+export interface GoalProgress {
+  reached: boolean;
+  remainingKg: number;
+  /** Weeks left at the planned rate, or null when there's no target or rate. */
+  weeksLeft: number | null;
+}
+
+/** Distance to the target weight, measured on the smoothed trend rather than one weigh-in. */
+export function goalProgress(trendKg: number, goal: GoalSettings): GoalProgress | null {
+  if (!goal.targetWeightKg || (goal.phase !== "bulk" && goal.phase !== "cut")) return null;
+  const remainingKg = goal.targetWeightKg - trendKg;
+  const reached = goal.phase === "bulk" ? remainingKg <= 0.2 : remainingKg >= -0.2;
+  const rate = Math.abs(goal.rateKgPerWeek);
+  return {
+    reached,
+    remainingKg,
+    weeksLeft: reached ? 0 : rate > 0 ? Math.ceil(Math.abs(remainingKg) / rate) : null,
+  };
+}
+
+/**
+ * Muscle-group weekly set targets that emphasise the Nightwing look: a V-taper (lats, side and
+ * rear delts), a strong core, and athletic glutes and calves, without neglecting the rest.
+ */
+export const NIGHTWING_MUSCLE_FOCUS = {
+  lats: 14,
+  sideDelts: 14,
+  rearDelts: 10,
+  upperBack: 10,
+  abs: 10,
+  obliques: 6,
+  glutes: 10,
+  hamstrings: 10,
+  quads: 10,
+  calves: 10,
+  chest: 10,
+} as const;
 
 /** Energy in 1 kg of body mass change (mixed tissue), kcal. */
 export const KCAL_PER_KG = 7700;
@@ -207,7 +256,7 @@ export function weeklyRate(weighIns: WeighIn[], asOf: string, days = 14): number
   return (num / den) * 7;
 }
 
-export type CheckInStatus = "on-track" | "too-fast" | "too-slow" | "adherence" | "insufficient-data";
+export type CheckInStatus = "on-track" | "too-fast" | "too-slow" | "adherence" | "insufficient-data" | "goal-reached";
 
 export interface CheckIn {
   status: CheckInStatus;
@@ -219,6 +268,8 @@ export interface CheckIn {
 }
 
 export interface CheckInInput {
+  /** When set, a reached target weight takes priority over rate adjustments. */
+  goal?: GoalSettings;
   targetRate: number;
   targetKcal: number;
   weighIns: WeighIn[];
@@ -239,6 +290,18 @@ export function weeklyCheckIn(input: CheckInInput): CheckIn {
   const actualRate = weeklyRate(input.weighIns, input.asOf);
   const avgIntake = input.intakeDays.length ? input.intakeDays.reduce((a, b) => a + b, 0) / input.intakeDays.length : null;
   const base = { actualRate, targetRate: input.targetRate, avgIntake, adjustKcal: 0 };
+
+  if (input.goal && input.weighIns.length) {
+    const trend = weightTrend(input.weighIns);
+    const progress = goalProgress(trend[trend.length - 1].trend, input.goal);
+    if (progress?.reached) {
+      return {
+        ...base,
+        status: "goal-reached",
+        message: `You've reached ${input.goal.targetWeightKg} kg. Switch to maintenance: eat at your new TDEE, keep protein high, and push strength and skill instead of size.`,
+      };
+    }
+  }
 
   if (actualRate === null || input.intakeDays.length < 4) {
     return {

@@ -26,6 +26,29 @@ if (!dataDir) {
 }
 const OUT = path.resolve("public/models/body.glb");
 
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const smooth = (e0, e1, x) => {
+  const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+  return t * t * (3 - 2 * t);
+};
+
+/** Frontal rays (toward -z) for the abdomen. */
+const frontRay = Object.assign((u, v) => ({ o: [u, v, 1], dir: [0, 0, -1] }), { at: () => ({ dir: [0, 0, -1] }) });
+/** Rays from behind (toward +z). */
+const backRay = Object.assign((u, v) => ({ o: [u, v, -1], dir: [0, 0, 1] }), { at: () => ({ dir: [0, 0, 1] }) });
+
+const ABS_TOP = 1.19;
+const ABS_BOTTOM = 0.855;
+/** Tendinous intersections (top to bottom); the lowest segment below the navel is the long one. */
+const ABS_ROWS = [ABS_TOP, 1.112, 1.04, 0.968, ABS_BOTTOM];
+const absWidth = (y) => 0.046 + 0.026 * ((y - ABS_BOTTOM) / (ABS_TOP - ABS_BOTTOM));
+
+const TORSO_Z = 0.095;
+const LAT_BOTTOM = 0.93;
+const LAT_TOP = 1.29;
+
 const SIDED = /\b(left|right)\b/;
 
 /** First matching rule wins. Patterns match BodyParts3D English names. */
@@ -53,7 +76,7 @@ const RULES = [
     "otherMuscles",
     /sternocleidomastoid|levator scapulae|semispinalis capitis|splenius|tibialis anterior|fibularis|extensor digitorum longus|extensor hallucis longus|platysma/,
   ],
-  ["tendons", /iliotibial tract|calcaneal tendon/],
+  ["tendons", /iliotibial tract|calcaneal tendon|linea alba/],
   // Only bones that show between muscles; vertebrae and hand/foot bones sit under muscle or skin.
   ["bones", /\b(tibia|fibula|patella|clavicle|hip bone|scapula|radius|ulna)\b|\brib\b|sternum|costal cartilage/],
 ];
@@ -90,6 +113,13 @@ merged.set(
   filterTriangles(merged.get("obliques"), (c) => !(Math.abs(c[0]) < 0.07 && c[2] > 0.12 && c[1] < 1.2)),
 );
 
+// --- Muscle above the skull base sits under the head skin; drop it so it can't show through the mouth/eye openings.
+for (const g of ["upperBack", "otherMuscles"])
+  merged.set(
+    g,
+    filterTriangles(merged.get(g), (c) => c[1] < 1.49),
+  );
+
 // --- Skin: keep head, hands and feet so the figure reads as a whole body.
 const skin = readObj(path.join(objDir, `${[...byName.get("skin")][0]}.obj`));
 const wristY = bounds(merged.get("forearms").positions).min[1] + 0.02;
@@ -101,6 +131,7 @@ merged.set(
 // --- Generated muscles fitted to the skin surface.
 const skinTris = trianglesOf(skin);
 merged.set("abs", absPatch(skinTris));
+merged.set("tendons", merge([merged.get("tendons"), rectusSheath(skinTris), lumbarFascia(skinTris)]));
 merged.set("lats", merge([merged.get("lats"), latsPatch(skinTris)]));
 merged.set("lowerBack", merge([merged.get("lowerBack"), erectorPatch(skinTris)]));
 
@@ -118,7 +149,7 @@ const BUDGET = {
   upperBack: 6000,
   otherMuscles: 5000,
   forearms: 5000,
-  tendons: 1500,
+  tendons: 4500,
   chest: 4500,
   quads: 4500,
   hamstrings: 3500,
@@ -127,11 +158,11 @@ const BUDGET = {
   glutes: 3500,
   biceps: 2500,
   triceps: 2500,
-  lats: 4000,
+  lats: 6000,
   frontDelts: 1500,
   sideDelts: 1500,
   rearDelts: 1500,
-  abs: 3000,
+  abs: 5000,
   lowerBack: 4000,
 };
 await MeshoptSimplifier.ready;
@@ -265,33 +296,35 @@ function intersect(o, d, [v0, v1, v2]) {
 }
 
 /**
- * Cast a grid of rays at the skin and build a surface patch where `mask(x, y)` returns a
- * bulge amount (> 0 to include). `dir` is +1 for rays travelling toward +z (hitting the back).
+ * Generic surface patch. A grid over (u, v) parameter space; `ray(u, v)` gives an origin and unit
+ * direction pointing into the body; `depth(u, v)` returns how far below the skin the surface sits
+ * (null = not part of the patch). `pick: "near"` takes the first skin hit; `"far"` takes the last hit
+ * before `maxT`, which skips an arm hanging between the ray origin and the torso. Faces point back toward the ray origin (out of the body).
  */
-function surfacePatch(tris, { xs, ys, dir, inset, mask }) {
-  const [x0, x1] = xs;
-  const [y0, y1] = ys;
-  const region = tris.filter((t) => t.some((v) => v[0] >= x0 - 0.02 && v[0] <= x1 + 0.02 && v[1] >= y0 - 0.02 && v[1] <= y1 + 0.02));
-  const step = 0.004;
-  const nx = Math.round((x1 - x0) / step) + 1;
-  const ny = Math.round((y1 - y0) / step) + 1;
-  const grid = new Array(nx * ny).fill(null);
-  for (let j = 0; j < ny; j++) {
-    for (let i = 0; i < nx; i++) {
-      const x = x0 + i * step;
-      const y = y0 + j * step;
-      const bulge = mask(x, y);
-      if (bulge <= 0) continue;
-      const o = [x, y, dir > 0 ? -1 : 1];
-      const d = [0, 0, dir];
+function castPatch(tris, { us, vs, step, ray, depth, maxT = 10, bbox, pick = "near", accept }) {
+  const region = bbox
+    ? tris.filter((t) => t.some((p) => p[0] >= bbox[0][0] && p[0] <= bbox[1][0] && p[1] >= bbox[0][1] && p[1] <= bbox[1][1]))
+    : tris;
+  const nu = Math.round((us[1] - us[0]) / step[0]) + 1;
+  const nv = Math.round((vs[1] - vs[0]) / step[1]) + 1;
+  const grid = new Array(nu * nv).fill(null);
+  for (let j = 0; j < nv; j++) {
+    for (let i = 0; i < nu; i++) {
+      const u = us[0] + i * step[0];
+      const v = vs[0] + j * step[1];
+      const d = depth(u, v);
+      if (d === null) continue;
+      const { o, dir } = ray(u, v);
       let best = null;
       for (const t of region) {
-        const hit = intersect(o, d, t);
-        if (hit !== null && (best === null || hit < best)) best = hit;
+        const hit = intersect(o, dir, t);
+        if (hit === null || hit >= maxT) continue;
+        if (best === null || (pick === "far" ? hit > best : hit < best)) best = hit;
       }
       if (best === null) continue;
-      const z = o[2] + d[2] * best;
-      grid[j * nx + i] = [x, y, z + dir * (inset - bulge)];
+      if (accept && !accept([o[0] + dir[0] * best, o[1] + dir[1] * best, o[2] + dir[2] * best])) continue;
+      const k = best + d;
+      grid[j * nu + i] = [o[0] + dir[0] * k, o[1] + dir[1] * k, o[2] + dir[2] * k];
     }
   }
   const positions = [];
@@ -304,78 +337,158 @@ function surfacePatch(tris, { xs, ys, dir, inset, mask }) {
     }
     return id.get(k);
   };
-  for (let j = 0; j + 1 < ny; j++) {
-    for (let i = 0; i + 1 < nx; i++) {
-      const a = j * nx + i;
+  for (let j = 0; j + 1 < nv; j++) {
+    for (let i = 0; i + 1 < nu; i++) {
+      const a = j * nu + i;
       const b = a + 1;
-      const c = a + nx;
+      const c = a + nu;
       const e = c + 1;
       if (!grid[a] || !grid[b] || !grid[c] || !grid[e]) continue;
-      // Wind so the face points out of the body.
-      if (dir < 0) indices.push(vert(a), vert(b), vert(e), vert(a), vert(e), vert(c));
-      else indices.push(vert(a), vert(e), vert(b), vert(a), vert(c), vert(e));
+      indices.push(vert(a), vert(b), vert(e), vert(a), vert(e), vert(c));
     }
   }
-  return { positions: new Float32Array(positions), indices: new Uint32Array(indices) };
+  // Orient faces so their normals point away from the body (against the ray).
+  const out = new Uint32Array(indices);
+  for (let t = 0; t < out.length; t += 3) {
+    const [p, q, r] = [out[t], out[t + 1], out[t + 2]].map((k) => positions.slice(k * 3, k * 3 + 3));
+    const n = cross(sub(q, p), sub(r, p));
+    const centre = [(p[0] + q[0] + r[0]) / 3, (p[1] + q[1] + r[1]) / 3, (p[2] + q[2] + r[2]) / 3];
+    const { dir } = rayAtPoint(centre);
+    if (dot(n, dir) > 0) [out[t + 1], out[t + 2]] = [out[t + 2], out[t + 1]];
+  }
+  return { positions: new Float32Array(positions), indices: out };
+
+  function rayAtPoint(pt) {
+    // Re-derive the ray direction for orientation using the same u/v mapping is awkward; approximate
+    // with the direction from the nearest grid ray, which is constant for planar casts and smooth for cylindrical ones.
+    return ray.at ? ray.at(pt) : ray(0, 0);
+  }
 }
 
-/** Rectus abdominis: two columns either side of the linea alba, split into four blocks each. */
+/** Rectus abdominis: eight rounded, pillowed blocks either side of the linea alba. */
 function absPatch(tris) {
-  const top = 1.19;
-  const bottom = 0.86;
-  const intersections = [1.105, 1.03, 0.955]; // tendinous intersections, top to bottom
-  return surfacePatch(tris, {
-    xs: [-0.075, 0.075],
-    ys: [bottom, top],
-    dir: -1,
-    inset: 0.004,
-    mask: (x, y) => {
+  return castPatch(tris, {
+    us: [-0.085, 0.085],
+    vs: [ABS_BOTTOM, ABS_TOP],
+    step: [0.0025, 0.0025],
+    ray: frontRay,
+    bbox: [
+      [-0.11, ABS_BOTTOM - 0.03],
+      [0.11, ABS_TOP + 0.03],
+    ],
+    depth: (x, y) => {
       const ax = Math.abs(x);
-      const t = (y - bottom) / (top - bottom);
-      const width = 0.048 + 0.022 * t; // narrower toward the pubis
-      if (ax < 0.006 || ax > width) return 0;
-      if (intersections.some((h) => Math.abs(y - h) < 0.004)) return 0;
-      // Pillow each block: higher in the middle of its column.
-      const u = (ax - 0.006) / (width - 0.006);
-      return 0.001 + 0.004 * Math.sin(Math.PI * u);
+      const w = absWidth(y);
+      const gap = 0.0035;
+      if (ax < 0.008 || ax > w) return null;
+      const row = ABS_ROWS.findIndex((h, k) => k + 1 < ABS_ROWS.length && y <= h && y >= ABS_ROWS[k + 1]);
+      if (row < 0) return null;
+      const top = ABS_ROWS[row] - (row === 0 ? 0 : gap);
+      const bottom = ABS_ROWS[row + 1] + (row === ABS_ROWS.length - 2 ? 0 : gap);
+      if (y > top || y < bottom) return null;
+      const u = (ax - 0.008) / (w - 0.008);
+      const v = (y - bottom) / (top - bottom);
+      // Rounded-rectangle footprint (superellipse) with a pillow profile.
+      const r = Math.pow(Math.abs(2 * u - 1), 4) + Math.pow(Math.abs(2 * v - 1), row === 3 ? 3 : 4);
+      if (r > 1) return null;
+      const pillow = Math.sqrt(1 - r);
+      return 0.008 - 0.0075 * pillow; // edges tuck 8 mm under, centres sit just below the skin
     },
   });
 }
 
-/** Erector spinae as seen through the thoracolumbar fascia: two columns beside the spine. */
+/** Ivory sheath behind the abs so the gaps read as tendon lines, as on an écorché. */
+function rectusSheath(tris) {
+  return castPatch(tris, {
+    us: [-0.09, 0.09],
+    vs: [ABS_BOTTOM - 0.01, ABS_TOP + 0.005],
+    step: [0.004, 0.004],
+    ray: frontRay,
+    bbox: [
+      [-0.12, ABS_BOTTOM - 0.04],
+      [0.12, ABS_TOP + 0.04],
+    ],
+    depth: (x, y) => (Math.abs(x) <= absWidth(Math.min(ABS_TOP, Math.max(ABS_BOTTOM, y))) + 0.006 ? 0.0085 : null),
+  });
+}
+
+/** Thoracolumbar fascia: the pale diamond over the lower back, under the erectors and lats. */
+function lumbarFascia(tris) {
+  return castPatch(tris, {
+    us: [-0.13, 0.13],
+    vs: [0.86, 1.15],
+    step: [0.004, 0.004],
+    ray: backRay,
+    bbox: [
+      [-0.16, 0.82],
+      [0.16, 1.19],
+    ],
+    depth: (x, y) => {
+      const t = (y - 0.86) / 0.29;
+      const w = 0.03 + 0.06 * Math.sin(Math.PI * Math.min(1, t));
+      return Math.abs(x) <= w ? 0.016 : null;
+    },
+  });
+}
+
+/** Erector spinae seen through the thoracolumbar fascia: two long columns beside the spine. */
 function erectorPatch(tris) {
-  return surfacePatch(tris, {
-    xs: [-0.06, 0.06],
-    ys: [0.9, 1.18],
-    dir: 1,
-    inset: 0.004,
-    mask: (x, y) => {
+  return castPatch(tris, {
+    us: [-0.06, 0.06],
+    vs: [0.9, 1.18],
+    step: [0.003, 0.003],
+    ray: backRay,
+    bbox: [
+      [-0.09, 0.86],
+      [0.09, 1.22],
+    ],
+    depth: (x, y) => {
       const ax = Math.abs(x);
       const t = (y - 0.9) / 0.28;
-      const outer = 0.055 - 0.012 * t;
-      if (ax < 0.008 || ax > outer) return 0;
-      const u = (ax - 0.008) / (outer - 0.008);
-      return 0.001 + 0.006 * Math.sin(Math.PI * u);
+      const outer = 0.055 - 0.014 * t;
+      if (ax < 0.009 || ax > outer) return null;
+      const u = (ax - 0.009) / (outer - 0.009);
+      const fade = smooth(0, 0.15, t) * smooth(1, 0.8, t);
+      return 0.011 - 0.01 * Math.pow(Math.sin(Math.PI * u), 0.8) * fade;
     },
   });
 }
 
-/** Latissimus dorsi: a fan from the armpit down to the lower back on each side. */
+/**
+ * Latissimus dorsi, cast cylindrically around the torso so it wraps from the lower back,
+ * around the ribs, up into the armpit. u = angle from the back midline (radians), v = height.
+ */
 function latsPatch(tris) {
-  return surfacePatch(tris, {
-    xs: [-0.19, 0.19],
-    ys: [0.95, 1.3],
-    dir: 1,
-    inset: 0.005,
-    mask: (x, y) => {
-      const ax = Math.abs(x);
-      const t = (y - 0.95) / (1.3 - 0.95); // 0 at the waist, 1 at the armpit
-      const inner = 0.035 + 0.075 * t * t; // hugs the spine low down, pulls away up top
-      const outer = 0.11 + 0.07 * Math.sqrt(t);
-      if (ax < inner || ax > outer) return 0;
-      if (y > 1.24 && ax < 0.12) return 0; // trapezius and scapula cover the top middle
-      const u = (ax - inner) / (outer - inner);
-      return 0.001 + 0.003 * Math.sin(Math.PI * u);
+  const R = 0.6;
+  const ray = Object.assign((u, v) => ({ o: [Math.sin(u) * R, v, TORSO_Z - Math.cos(u) * R], dir: [-Math.sin(u), 0, Math.cos(u)] }), {
+    at: (pt) => {
+      const u = Math.atan2(pt[0], TORSO_Z - pt[2]);
+      return { dir: [-Math.sin(u), 0, Math.cos(u)] };
+    },
+  });
+  return castPatch(tris, {
+    us: [-1.6, 1.6],
+    vs: [LAT_BOTTOM, LAT_TOP],
+    step: [0.012, 0.003],
+    ray,
+    maxT: R,
+    pick: "far",
+    // Only the torso: reject hits on the arm hanging beside it.
+    accept: (p) => Math.hypot(p[0], p[2] - TORSO_Z) < 0.175,
+    bbox: [
+      [-0.3, LAT_BOTTOM - 0.03],
+      [0.3, LAT_TOP + 0.03],
+    ],
+    depth: (u, y) => {
+      const a = Math.abs(u);
+      const t = (y - LAT_BOTTOM) / (LAT_TOP - LAT_BOTTOM); // 0 waist, 1 armpit
+      const inner = 0.1 + 0.62 * Math.pow(t, 1.5); // hugs the spine low, clears the scapula high up
+      const outer = 0.95 + 0.35 * Math.sqrt(t); // wraps to the side and into the armpit
+      if (a < inner || a > outer) return null;
+      if (t > 0.85 && a < 1.05) return null; // top edge tucks under the teres major / armpit
+      const s = (a - inner) / (outer - inner);
+      const fade = smooth(0, 0.12, t) * smooth(1, 0.85, t);
+      return 0.009 - 0.008 * Math.pow(Math.sin(Math.PI * s), 0.7) * fade;
     },
   });
 }

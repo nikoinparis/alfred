@@ -11,9 +11,9 @@ See [ROADMAP.md](ROADMAP.md) for status and what's next.
 | Tab | What it does |
 |---|---|
 | **Today** | Pick the day type in one tap (the suggested one is pre-selected), see each exercise with its next weight, then log set by set: per-set weight and reps, warm-up/working/failure/drop kinds, **Same again** (one tap repeats your last set), a quick effort (RPE) prompt that feeds the suggestions, warm-up ramp, plate calculator, PR toasts, swap-for-today. Finish to get a summary and a shareable card. A weekly nudge reminds you to back up. |
-| **Plan** | The week (Mon–Sun) with done/planned/skipped days and dashed "ghost" suggestions you can accept or override. Weekly review: push:pull and quad:ham balance, streak. |
-| **Body** | Hard sets per muscle this week vs target on a 2D front/back map or a rotatable anatomical 3D model (heat or pastel anatomy colours). Tap a muscle for what hit it and what's left. |
-| **Fuel** | Calories and macros vs targets, food search with favourites (Indonesian staples pre-loaded), saved meals, **Log a meal** (photo, description, or both, then refine), bodyweight trend, 7-day summary. Goal engine and weekly check-in under Goal & targets. |
+| **Plan** | The week as a timeline: done, planned, skipped and suggested days (tap the dashed check to accept). Tap any day to preview day types and see exactly which muscles each day and exercise trains. Weekly review: push:pull and quad:ham balance, streak. |
+| **Body** | Hard sets per muscle this week vs target on an anatomical figure, front and back side by side (volume colours or pastel anatomy colours). Tap a muscle for what hit it and what's left. |
+| **Fuel** | Calories and macros vs targets, food search with favourites (Indonesian staples pre-loaded), saved meals, **Snap a meal** (photo first, then say what it is; refine and re-estimate), bodyweight trend, 7-day summary. Goal engine and weekly check-in under Goal & targets. |
 | **History** | Every workout, plus per-exercise estimated-1RM and volume charts. |
 
 Units: kg by default, switch to lb any time in Settings. Each set keeps the unit it was logged in.
@@ -55,9 +55,9 @@ The Hobby plan is free for personal use.
 3. Open Alfred from the home screen, go to **Settings → Access**, enter your passphrase. This device now uses your own data and can analyse photos.
 4. Open each tab once while online so they're cached for offline use in the gym.
 
-## Log a meal (photo and/or description)
+## Snap a meal
 
-- Snap or choose a photo, describe it, or both. Brand names and amounts ("Kellogg's Corn Flakes, 40 g, 200 ml milk") make the model use that product's label instead of guessing. After the estimate, add a detail and tap Re-estimate.
+- Take or choose a photo, then describe it. Brand names and amounts ("Kellogg's Corn Flakes, 40 g, 200 ml milk") make the model use that product's label instead of guessing. After the estimate, add a detail and tap Re-estimate.
 
 - The phone shrinks the photo to 1024 px JPEG (~200 KB) before upload. Nothing is stored server-side.
 - `/api/vision` only answers requests carrying the owner cookie, and caps usage at 30 photos/hour.
@@ -66,6 +66,8 @@ The Hobby plan is free for personal use.
 - In demo mode, or on a device that isn't unlocked, you get a canned sample estimate and no API call is made.
 
 ## Goal engine
+
+The owner profile defaults to 179 cm (5'10.5"), 64.6 kg, age 22, with the **Nightwing** preset: a lean bulk at ~0.25 kg/week (+275 kcal/day), 2 g/kg protein, to a 72 kg "sweet spot" (BMI ≈ 22.5). The Fuel tab shows progress from start to target; when the smoothed trend reaches the target, the weekly check-in says so and offers a one-tap switch to maintenance. A "V-taper" button sets weekly muscle targets that favour lats, side and rear delts, core, glutes and calves.
 
 `src/lib/domain/nutrition.ts` (tested in `nutrition.test.ts`), shown step by step in the app:
 

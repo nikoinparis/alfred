@@ -214,3 +214,21 @@ export async function seedDemo(db: AlfredDB, todayISO: string) {
     ]);
   });
 }
+
+/** The owner's real starting point (Oct 2026): 179 cm (5'10.5"), 64.6 kg, 22, Nightwing lean bulk to 72 kg. */
+export const OWNER_PROFILE = { sex: "male", age: 22, heightCm: 179, weightKg: 64.6, activity: "moderate" } as const;
+export const OWNER_GOAL = { preset: "nightwing", phase: "bulk", rateKgPerWeek: 0.25, targetWeightKg: 72 } as const;
+
+/**
+ * Fill in the owner's profile and goal if they're missing (new device, or a database created
+ * before these existed). Never overwrites anything the owner has already set.
+ */
+export async function ensureOwnerDefaults(db: AlfredDB, todayISO: string) {
+  await db.transaction("rw", [db.settings, db.bodyweights, db.muscleTargets], async () => {
+    const s = await db.settings.get("app");
+    if (s && (!s.profile || !s.goal)) {
+      await db.settings.put({ ...s, profile: s.profile ?? { ...OWNER_PROFILE }, goal: s.goal ?? { ...OWNER_GOAL } });
+    }
+    if ((await db.bodyweights.count()) === 0) await db.bodyweights.put({ date: todayISO, kg: OWNER_PROFILE.weightKg });
+  });
+}

@@ -69,3 +69,20 @@ describe("backupDue", () => {
     expect(backupDue({ sessions: 9, lastBackupAt: now - 8 * day, snoozeUntil: now + day, now })).toBe(false);
   });
 });
+
+describe("owner defaults", () => {
+  it("fills profile, goal and a first weigh-in without overwriting", async () => {
+    const { ensureOwnerDefaults, seedBase } = await import("./seed");
+    const db = new AlfredDB("owner-defaults");
+    await seedBase(db);
+    await ensureOwnerDefaults(db, "2026-10-07");
+    const s = (await db.settings.get("app"))!;
+    expect(s.profile).toMatchObject({ heightCm: 179, weightKg: 64.6, age: 22 });
+    expect(s.goal).toMatchObject({ preset: "nightwing", targetWeightKg: 72 });
+    expect(await db.bodyweights.get("2026-10-07")).toMatchObject({ kg: 64.6 });
+    await db.settings.put({ ...s, profile: { ...s.profile!, age: 30 } });
+    await ensureOwnerDefaults(db, "2026-10-08");
+    expect((await db.settings.get("app"))!.profile!.age).toBe(30);
+    expect(await db.bodyweights.count()).toBe(1);
+  });
+});

@@ -1,5 +1,16 @@
 # Roadmap
 
+## Round 3 (7 Oct 2026)
+
+- **Nightwing goal** built in: your stats (179 cm, 64.6 kg, 22) and a lean bulk to 72 kg, then maintenance. Goal card on Fuel, ETA, switch-to-maintenance prompt, V-taper muscle targets.
+- **Anatomy as a plate:** front and back side by side (no rotation, no Front/Back or 2D/3D toggles), reused everywhere: Body, Today's hero, and day/exercise detail. Abs are now eight rounded blocks over an ivory sheath; lats fan from the armpit down to the waist; lower back shows the erectors over the lumbar fascia.
+- **See what everything trains:** tap an exercise on Today, or tap a day on Plan and switch between day types, to see primary (blue) and secondary (light blue) muscles.
+- **Plan** is a vertical timeline with a dashed check to accept a suggestion; days before you started aren't marked missed.
+- **Today** remembers the day type you pick and no longer shows the suggestion dot.
+- **Snap a meal** is photo first, then describe.
+- **Look:** Nightwing electric-blue accent, new swept-wing emblem and app icon, crisper card edges, day hero card.
+- The workouts you saw before were the **demo athlete**. Your own data starts empty once you unlock with your passphrase.
+
 ## Round 2 (7 Oct 2026, from your feedback)
 
 - **Planner:** Push/Pull/Legs is one block in any order, Upper/Lower another in either order; rest comes after a finished block, so Lower → Upper back to back is suggested, not Lower → Rest.

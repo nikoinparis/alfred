@@ -1,11 +1,13 @@
 import { cn } from "@/lib/cn";
 
-/** Angular cowl-like emblem: two blades meeting at a point. Deliberately not a bat. */
+/** Swept-wing chevron: a glide, not a logo of anyone in particular. */
+export const EMBLEM_PATH = "M2 9.5 16 22.5 30 9.5 26.5 9.2 16 17.6 5.5 9.2Z";
+
 export function Emblem({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" className={cn("size-7", className)} aria-hidden>
-      <path d="M16 3 4 9.5v7.2C4 23 9.2 27.6 16 29c6.8-1.4 12-6 12-12.3V9.5L16 3Z" fill="var(--gunmetal-2)" stroke="var(--steel-2)" />
-      <path d="M9 12.5 16 22l7-9.5-3.6 1.6L16 9.5l-3.4 4.6L9 12.5Z" fill="var(--signal)" />
+      <rect x="1" y="1" width="30" height="30" rx="8" fill="var(--gunmetal-2)" stroke="rgb(255 255 255 / 0.08)" />
+      <path d={EMBLEM_PATH} fill="var(--signal)" />
     </svg>
   );
 }

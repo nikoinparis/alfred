@@ -116,7 +116,7 @@ export function PhotoMacrosSheet({ open, onClose, date }: { open: boolean; onClo
     close();
   };
 
-  const canEstimate = Boolean(photo) || note.trim().length > 2;
+  const canEstimate = Boolean(photo);
   const draft = stage.kind === "draft" ? stage : null;
 
   return (
@@ -176,61 +176,70 @@ export function PhotoMacrosSheet({ open, onClose, date }: { open: boolean; onClo
           )}
 
           {photo ? (
-            <div className="relative overflow-hidden rounded-[16px]">
-              <img src={photo.dataUrl} alt="Your meal" className="max-h-64 w-full object-cover" />
-              <button
-                type="button"
-                onClick={() => setPhoto(null)}
-                className="material absolute right-2 top-2 grid size-9 place-items-center rounded-full text-bone"
-                aria-label="Remove photo"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
+            <>
+              <div className="relative overflow-hidden rounded-[16px]">
+                <img src={photo.dataUrl} alt="Your meal" className="max-h-64 w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setPhoto(null)}
+                  className="absolute right-2 top-2 h-9 rounded-full bg-black/70 px-3 text-sm font-semibold text-bone ring-1 ring-white/15"
+                >
+                  Retake
+                </button>
+              </div>
+              <label className="block">
+                <span className="mb-1.5 block px-1 text-sm font-semibold text-bone">What is it?</span>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={3}
+                  maxLength={600}
+                  autoFocus
+                  placeholder="Brand, amount, how it was cooked"
+                  className="w-full resize-none rounded-[12px] bg-white/[0.07] px-3.5 py-3 text-base outline-none ring-signal/60 placeholder:text-fog/70 focus:bg-white/[0.1] focus:ring-1"
+                />
+                <span className="mt-1.5 block px-1 text-xs text-fog">
+                  The more specific, the better the read. A brand lets Claude use the real label.
+                </span>
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {EXAMPLES.map((ex) => (
+                  <button
+                    key={ex}
+                    type="button"
+                    onClick={() => setNote((n) => (n ? `${n}. ${ex}` : ex))}
+                    className="pressable rounded-full bg-white/[0.06] px-3 py-1.5 text-xs text-fog-2"
+                  >
+                    {ex}
+                  </button>
+                ))}
+              </div>
+            </>
           ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => camRef.current?.click()}
-                className="pressable flex h-28 flex-col items-center justify-center gap-2 rounded-[16px] bg-white/[0.06] text-sm font-semibold"
-              >
-                <Camera className="size-7 text-signal" /> Take photo
-              </button>
-              <button
-                type="button"
-                onClick={() => libRef.current?.click()}
-                className="pressable flex h-28 flex-col items-center justify-center gap-2 rounded-[16px] bg-white/[0.06] text-sm font-semibold"
-              >
-                <ImagePlus className="size-7 text-signal" /> Choose photo
-              </button>
-            </div>
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => camRef.current?.click()}
+                  className="pressable flex h-36 flex-col items-center justify-center gap-2 rounded-[16px] bg-signal text-base font-semibold text-signal-ink"
+                >
+                  <Camera className="size-8" /> Take photo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => libRef.current?.click()}
+                  className="pressable flex h-36 flex-col items-center justify-center gap-2 rounded-[16px] bg-white/[0.07] text-base font-semibold"
+                >
+                  <ImagePlus className="size-8 text-signal" /> Choose photo
+                </button>
+              </div>
+              <ol className="grid gap-1 px-1 text-sm text-fog">
+                <li>1. Snap your plate.</li>
+                <li>2. Say what it is: brand, amount, how it was cooked.</li>
+                <li>3. Check Claude&apos;s estimate and save.</li>
+              </ol>
+            </>
           )}
-
-          <label className="block">
-            <span className="mb-1.5 block px-1 text-sm text-fog">
-              {photo ? "What is it? (optional, but it sharpens the estimate)" : "Or just describe it"}
-            </span>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={3}
-              maxLength={600}
-              placeholder="Brand, amount, how it was cooked…"
-              className="w-full resize-none rounded-[12px] bg-white/[0.07] px-3.5 py-3 text-base outline-none ring-signal/60 placeholder:text-fog/70 focus:bg-white/[0.1] focus:ring-1"
-            />
-          </label>
-          <div className="flex flex-wrap gap-1.5">
-            {EXAMPLES.map((ex) => (
-              <button
-                key={ex}
-                type="button"
-                onClick={() => setNote((n) => (n ? `${n}. ${ex}` : ex))}
-                className="pressable rounded-full bg-white/[0.06] px-3 py-1.5 text-xs text-fog-2"
-              >
-                {ex}
-              </button>
-            ))}
-          </div>
           <p className="px-1 text-xs text-fog">Photos are shrunk to 1024 px on your phone before upload and aren&apos;t stored anywhere.</p>
         </div>
       )}

@@ -31,8 +31,8 @@ export async function renderShareCard(
 
   // Signal beam
   const beam = g.createLinearGradient(W, 0, W * 0.4, H * 0.6);
-  beam.addColorStop(0, "rgba(226,176,74,0.22)");
-  beam.addColorStop(1, "rgba(226,176,74,0)");
+  beam.addColorStop(0, "rgba(58,134,255,0.24)");
+  beam.addColorStop(1, "rgba(58,134,255,0)");
   g.fillStyle = beam;
   g.beginPath();
   g.moveTo(W, 0);
@@ -42,7 +42,7 @@ export async function renderShareCard(
   g.fill();
 
   const pad = 88;
-  g.fillStyle = "#e2b04a";
+  g.fillStyle = "#3a86ff";
   g.font = `600 30px ${body}`;
   g.fillText(format(parseISODate(session.date), "EEEE d MMMM yyyy"), pad, 150);
 
@@ -80,7 +80,7 @@ export async function renderShareCard(
       .filter((s) => s.done && s.kind !== "warmup")
       .sort((a, b) => (b.weight ?? 0) * (b.reps ?? 0) - (a.weight ?? 0) * (a.reps ?? 0))[0];
     const isPr = stats.prs.some((p) => p.exerciseId === e.exerciseId);
-    g.fillStyle = isPr ? "#e2b04a" : "#b4bcc8";
+    g.fillStyle = isPr ? "#3a86ff" : "#b4bcc8";
     g.font = `500 36px ${body}`;
     g.fillText(truncate(g, ex?.name ?? "", 600), pad, y);
     if (best) {
@@ -95,7 +95,7 @@ export async function renderShareCard(
   }
 
   if (stats.prs.length) {
-    g.fillStyle = "#e2b04a";
+    g.fillStyle = "#3a86ff";
     g.font = `600 34px ${body}`;
     g.fillText(`${stats.prs.length} personal record${stats.prs.length > 1 ? "s" : ""}`, pad, H - 120);
   }

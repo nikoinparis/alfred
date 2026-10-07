@@ -2,7 +2,6 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { format } from "date-fns";
-import { AnimatePresence, motion } from "motion/react";
 import { Check, ChevronLeft, ChevronRight, Flame, Info } from "lucide-react";
 import { useState } from "react";
 import { useApp, useSettings } from "@/components/providers/app-provider";
@@ -16,7 +15,8 @@ import { addDays, compareDates, parseISODate, startOfWeek, weekDates } from "@/l
 import { DAY_LABEL } from "@/lib/domain/muscles";
 import { conflicts, suggestPlan, type Suggestion } from "@/lib/domain/planner";
 import { weekStreak, weeklyReview } from "@/lib/domain/review";
-import type { DayLog, DayType } from "@/lib/domain/types";
+import type { DayLog, DayType, Exercise } from "@/lib/domain/types";
+import { DayWorks } from "@/components/workout/muscle-info";
 import { formatNumber } from "@/lib/domain/units";
 import { cn } from "@/lib/cn";
 
@@ -55,6 +55,10 @@ export default function PlanPage() {
   if (!logs || !sessions || !exercises) return <Page title="Plan">{null}</Page>;
 
   const logByDate = new Map(logs.map((l) => [l.date, l]));
+  const firstLogged = logs
+    .filter((l) => l.status === "done")
+    .map((l) => l.date)
+    .sort()[0];
   const sugByDate = new Map(suggestions.map((s) => [s.date, s]));
 
   const stateFor = (date: string): DayState => {
@@ -69,7 +73,8 @@ export default function PlanPage() {
     if (log?.status === "planned" && compareDates(date, t) >= 0) return { kind: "planned", dayType: log.dayType };
     const sug = sugByDate.get(date);
     if (sug) return { kind: "ghost", suggestion: sug };
-    if (compareDates(date, t) < 0) return { kind: "missed" };
+    // Before your first logged day nothing was "missed"; you just hadn't started yet.
+    if (compareDates(date, t) < 0) return firstLogged && compareDates(date, firstLogged) >= 0 ? { kind: "missed" } : { kind: "empty" };
     return { kind: "empty" };
   };
 
@@ -104,20 +109,20 @@ export default function PlanPage() {
         </Button>
       </div>
 
-      <ol className="mt-3 grid gap-2 md:grid-cols-7">
-        {dates.map((date) => {
+      <ol className="panel mt-3 py-2">
+        {dates.map((date, i) => {
           const st = stateFor(date);
-          const isToday = date === t;
           return (
-            <li key={date}>
-              <DayCard
-                date={date}
-                state={st}
-                isToday={isToday}
-                onOpen={() => setEditing(date)}
-                onAccept={st.kind === "ghost" ? () => setDay(date, st.suggestion.dayType, "planned") : undefined}
-              />
-            </li>
+            <DayRow
+              key={date}
+              date={date}
+              state={st}
+              isToday={date === t}
+              first={i === 0}
+              last={i === dates.length - 1}
+              onOpen={() => setEditing(date)}
+              onAccept={st.kind === "ghost" ? () => setDay(date, st.suggestion.dayType, "planned") : undefined}
+            />
           );
         })}
       </ol>
@@ -125,7 +130,7 @@ export default function PlanPage() {
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {ghosts.length > 1 && (
           <Button
-            variant="primary"
+            variant="tinted"
             onClick={async () => {
               await db.dayLogs.bulkPut(
                 ghosts.map((g) => ({ date: g.suggestion.date, dayType: g.suggestion.dayType, status: "planned" as const })),
@@ -180,10 +185,12 @@ export default function PlanPage() {
       >
         {editing && editingState && (
           <DayEditor
+            key={editing}
             date={editing}
             state={editingState}
             isPast={compareDates(editing, t) < 0}
             prevType={stateType(stateFor(addDays(editing, -1)))}
+            exercises={exercises}
             onPick={async (d) => {
               await setDay(editing, d, compareDates(editing, t) < 0 ? "done" : "planned");
               setEditing(null);
@@ -230,28 +237,30 @@ function stateType(s: DayState): DayType | null {
   return null;
 }
 
-function DayCard({
+/**
+ * One day on the week timeline. The rail node encodes state: filled = done, solid ring = planned,
+ * dashed ring = suggested (tap it to accept), faint = missed or skipped.
+ */
+function DayRow({
   date,
   state,
   isToday,
+  first,
+  last,
   onOpen,
   onAccept,
 }: {
   date: string;
   state: DayState;
   isToday: boolean;
+  first: boolean;
+  last: boolean;
   onOpen: () => void;
   onAccept?: () => void;
 }) {
   const d = parseISODate(date);
-  const label =
-    state.kind === "done" || state.kind === "planned" || state.kind === "skipped"
-      ? DAY_LABEL[state.dayType]
-      : state.kind === "ghost"
-        ? DAY_LABEL[state.suggestion.dayType]
-        : state.kind === "missed"
-          ? "Missed"
-          : "–";
+  const type = stateType(state);
+  const label = type ? DAY_LABEL[type] : state.kind === "missed" ? "Missed" : "—";
   const meta =
     state.kind === "done"
       ? state.dayType === "rest"
@@ -262,66 +271,66 @@ function DayCard({
         : state.kind === "skipped"
           ? "Skipped"
           : state.kind === "ghost"
-            ? "Suggested"
+            ? state.suggestion.reason
             : state.kind === "missed"
               ? "Nothing logged"
               : "";
+  const faded = state.kind === "missed" || state.kind === "skipped" || state.kind === "empty";
 
   return (
-    <div
-      className={cn(
-        "relative flex min-h-[64px] items-center gap-3 rounded-[12px] border px-3 py-2 md:min-h-[140px] md:flex-col md:items-start md:gap-2 md:p-3",
-        state.kind === "done" && state.dayType !== "rest" && "border-transparent bg-gunmetal-2",
-        state.kind === "done" && state.dayType === "rest" && "border-transparent bg-gunmetal",
-        state.kind === "planned" && "border-transparent bg-gunmetal",
-        state.kind === "ghost" && "border-dashed border-white/15 bg-transparent",
-        (state.kind === "missed" || state.kind === "skipped" || state.kind === "empty") && "border-separator bg-transparent",
-        isToday && "ring-1 ring-signal/70",
-      )}
-    >
-      <button
-        type="button"
-        onClick={onOpen}
-        className="absolute inset-0 rounded-[12px]"
-        aria-label={`${format(d, "EEEE")}: ${label}, ${meta}. Edit`}
-      />
-      <div className="pointer-events-none w-11 shrink-0 text-center md:w-auto md:text-left">
-        <p className={cn("text-xs", isToday ? "text-signal" : "text-fog")}>{isToday ? "Today" : format(d, "EEE")}</p>
-        <p className="readout text-2xl font-semibold">{format(d, "d")}</p>
-      </div>
-      <div className="pointer-events-none min-w-0 flex-1">
-        <p
-          className={cn(
-            "font-display text-xl font-semibold tracking-wide",
-            state.kind === "ghost" && "text-fog-2",
-            (state.kind === "missed" || state.kind === "skipped") && "text-fog line-through decoration-steel-2",
-            state.kind === "done" && state.dayType !== "rest" && "text-bone",
-          )}
-        >
-          {label}
-        </p>
-        <p className="text-xs text-fog">{meta}</p>
-      </div>
-      {state.kind === "done" && state.dayType !== "rest" && (
-        <span className="pointer-events-none grid size-7 place-items-center rounded-full bg-signal text-signal-ink md:absolute md:right-3 md:top-3">
-          <Check className="size-4" strokeWidth={3} />
+    <li className="relative">
+      <button type="button" onClick={onOpen} className="pressable flex w-full items-stretch gap-3 px-4 text-left">
+        <span className="w-10 shrink-0 py-3 text-center">
+          <span className={cn("block text-xs font-semibold", isToday ? "text-signal" : "text-fog")}>
+            {isToday ? "Today" : format(d, "EEE")}
+          </span>
+          <span className={cn("readout block text-2xl font-semibold", faded && "text-fog")}>{format(d, "d")}</span>
         </span>
-      )}
-      <AnimatePresence>
-        {onAccept && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            type="button"
-            onClick={onAccept}
-            className="relative z-[1] h-9 shrink-0 rounded-full bg-signal-soft px-4 text-sm font-semibold text-signal active:opacity-70 md:mt-auto md:w-full"
+        <span className="relative flex w-6 shrink-0 justify-center" aria-hidden>
+          <span className={cn("absolute w-px bg-white/10", first ? "top-1/2" : "top-0", last ? "bottom-1/2" : "bottom-0")} />
+          <span
+            className={cn(
+              "relative mt-[22px] size-3.5 rounded-full",
+              state.kind === "done" && "bg-signal",
+              state.kind === "planned" && "border-2 border-signal bg-night",
+              state.kind === "ghost" && "border-2 border-dashed border-signal/70 bg-night",
+              faded && "border-2 border-white/15 bg-night",
+            )}
+          />
+        </span>
+        <span className="min-w-0 flex-1 py-3">
+          <span
+            className={cn(
+              "block font-display text-[22px] font-semibold leading-tight tracking-wide",
+              faded && "text-fog",
+              (state.kind === "missed" || state.kind === "skipped") && "line-through decoration-white/20",
+              state.kind === "ghost" && "text-fog-2",
+            )}
           >
-            Accept
-          </motion.button>
+            {label}
+          </span>
+          <span className="line-clamp-2 text-sm text-fog">{meta}</span>
+        </span>
+        {state.kind === "done" && state.dayType !== "rest" && (
+          <span className="grid size-11 shrink-0 self-center place-items-center text-signal">
+            <Check className="size-5" strokeWidth={2.5} />
+          </span>
         )}
-      </AnimatePresence>
-    </div>
+        {onAccept && <span className="size-11 shrink-0" aria-hidden />}
+      </button>
+      {onAccept && (
+        <button
+          type="button"
+          onClick={onAccept}
+          aria-label={`Accept ${label} for ${format(d, "EEEE")}`}
+          className="group absolute right-4 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-full active:scale-95"
+        >
+          <span className="grid size-8 place-items-center rounded-full border-2 border-dashed border-signal/60 text-signal/70 transition-colors group-hover:border-solid group-hover:border-signal group-hover:bg-signal group-hover:text-signal-ink">
+            <Check className="size-4" strokeWidth={2.5} />
+          </span>
+        </button>
+      )}
+    </li>
   );
 }
 
@@ -329,6 +338,7 @@ function DayEditor({
   state,
   isPast,
   prevType,
+  exercises,
   onPick,
   onSkip,
   onClear,
@@ -337,36 +347,56 @@ function DayEditor({
   state: DayState;
   isPast: boolean;
   prevType: DayType | null;
+  exercises: Record<string, Exercise>;
   onPick: (d: DayType) => void;
   onSkip: (d: DayType) => void;
   onClear: () => void;
 }) {
   const current = stateType(state);
+  const [preview, setPreview] = useState<DayType>(current ?? "push");
   const skippable = state.kind === "planned" || state.kind === "ghost";
+  const committed = (state.kind === "planned" || state.kind === "done") && current === preview;
   return (
     <div className="grid gap-4">
-      <div>
-        <p className="mb-2 text-sm text-fog-2">{isPast ? "What did you do?" : "Plan this day as"}</p>
-        <div className="grid grid-cols-3 gap-2">
-          {DAY_CHOICES.map((d) => {
-            const clash = conflicts(prevType, d);
-            return (
-              <button
-                key={d}
-                type="button"
-                onClick={() => onPick(d)}
-                className={cn(
-                  "flex h-14 flex-col items-center justify-center rounded-[12px] border text-base font-medium",
-                  d === current ? "border-transparent bg-signal-soft text-signal" : "border-transparent bg-white/[0.07] text-fog-2",
-                )}
-              >
-                {DAY_LABEL[d]}
-                {clash && <span className="text-[11px] font-normal text-ochre">overlaps day before</span>}
-              </button>
-            );
-          })}
-        </div>
+      <div role="radiogroup" aria-label="Day type" className="grid grid-cols-3 gap-2">
+        {DAY_CHOICES.map((d) => {
+          const clash = conflicts(prevType, d);
+          return (
+            <button
+              key={d}
+              type="button"
+              role="radio"
+              aria-checked={d === preview}
+              onClick={() => setPreview(d)}
+              className={cn(
+                "flex h-14 flex-col items-center justify-center rounded-[14px] text-base font-semibold transition-colors active:scale-[0.97]",
+                d === preview ? "bg-signal text-signal-ink" : "bg-white/[0.07] text-fog-2",
+              )}
+            >
+              {DAY_LABEL[d]}
+              {clash && (
+                <span className={cn("text-[11px] font-normal", d === preview ? "text-white/80" : "text-ochre")}>overlaps day before</span>
+              )}
+            </button>
+          );
+        })}
       </div>
+
+      <Button variant="primary" size="lg" disabled={committed} onClick={() => onPick(preview)}>
+        {committed
+          ? `${DAY_LABEL[preview]} is ${isPast ? "logged" : "planned"}`
+          : isPast
+            ? `Log as ${DAY_LABEL[preview]}`
+            : state.kind === "ghost" && current === preview
+              ? `Accept ${DAY_LABEL[preview]}`
+              : `Plan ${DAY_LABEL[preview]}`}
+      </Button>
+
+      <div>
+        <p className="mb-2 px-1 text-sm font-semibold text-fog">What {DAY_LABEL[preview]} trains</p>
+        <DayWorks key={preview} dayType={preview} exercises={exercises} />
+      </div>
+
       <div className="flex flex-wrap gap-2">
         {skippable && current && (
           <Button variant="secondary" onClick={() => onSkip(current)}>

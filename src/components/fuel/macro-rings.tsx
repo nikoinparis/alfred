@@ -20,7 +20,7 @@ export function MacroRings({ totals, targets }: { totals: Totals; targets: Macro
             cy="90"
             r={R}
             fill="none"
-            stroke={over ? "var(--crimson)" : "var(--signal)"}
+            stroke={over ? "var(--ochre)" : "var(--signal)"}
             strokeWidth="10"
             strokeLinecap="round"
             strokeDasharray={C}
@@ -41,8 +41,8 @@ export function MacroRings({ totals, targets }: { totals: Totals; targets: Macro
         </div>
       </div>
       <div className="grid gap-4">
-        <MacroBar label="Protein" value={totals.protein} target={targets.protein} tone="bg-bone" emphasis />
-        <MacroBar label="Carbs" value={totals.carbs} target={targets.carbs} tone="bg-ice" />
+        <MacroBar label="Protein" value={totals.protein} target={targets.protein} tone="bg-signal" emphasis />
+        <MacroBar label="Carbs" value={totals.carbs} target={targets.carbs} tone="bg-[#6fcfbf]" />
         <MacroBar label="Fat" value={totals.fat} target={targets.fat} tone="bg-ochre" />
       </div>
     </div>

@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { format } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus, Sparkles, Target, Trash2 } from "lucide-react";
+import { Camera, ChevronLeft, ChevronRight, Plus, Sparkles, Target, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useApp, useSettings } from "@/components/providers/app-provider";
 import { AddFoodSheet, MacroLine } from "@/components/fuel/add-food-sheet";
 import { BodyweightCard } from "@/components/fuel/bodyweight-card";
+import { GoalCard } from "@/components/fuel/goal-card";
 import { MacroRings } from "@/components/fuel/macro-rings";
 import { PhotoMacrosSheet } from "@/components/fuel/photo-macros";
 import { WeeklySummary } from "@/components/fuel/weekly-summary";
@@ -64,6 +65,11 @@ export default function FuelPage() {
         </Button>
       </div>
 
+      {source === "goal" && (
+        <div className="mt-3">
+          <GoalCard targets={targets} />
+        </div>
+      )}
       {source === "fallback" && (
         <Link href="/fuel/goals" className="panel mt-3 flex items-center gap-3 border-signal/40 p-3.5 hover:border-signal">
           <Target className="size-5 shrink-0 text-signal" />
@@ -84,7 +90,7 @@ export default function FuelPage() {
           <Plus className="size-5" /> Add food
         </Button>
         <Button size="lg" onClick={() => setPhoto(true)}>
-          <Sparkles className="size-5" /> Log a meal
+          <Camera className="size-5" /> Snap a meal
         </Button>
       </div>
 

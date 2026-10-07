@@ -2,13 +2,14 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { motion } from "motion/react";
-import { ArrowUp, BedDouble, Play } from "lucide-react";
+import { ArrowUp, BedDouble, ChevronRight, Play } from "lucide-react";
 import { useState } from "react";
 import { useApp, useSettings } from "@/components/providers/app-provider";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { historyFor, latestBodyweightKg, logRestDay, overloadFor, startSession } from "@/lib/db/workouts";
-import { DAY_LABEL } from "@/lib/domain/muscles";
+import { DAY_LABEL, MUSCLE_META } from "@/lib/domain/muscles";
+import { ExerciseInfoSheet, MuscleLegend, WorksFigure } from "./muscle-info";
 import type { Suggestion } from "@/lib/domain/planner";
 import type { DayLog, DayTemplate, DayType, Exercise } from "@/lib/domain/types";
 import { formatNumber } from "@/lib/domain/units";
@@ -29,9 +30,11 @@ export function TodayStart({ date, planned, suggestion, templates, exercises, re
   const { db } = useApp();
   const settings = useSettings();
   const toast = useToast();
-  const recommended = planned?.dayType ?? suggestion?.dayType ?? "push";
-  const [selected, setSelected] = useState<DayType>(recommended);
+  const suggested = suggestion?.dayType ?? "push";
+  const [choice, setChoice] = useState<DayType | null>(null);
+  const selected = choice ?? planned?.dayType ?? suggested;
   const [starting, setStarting] = useState(false);
+  const [info, setInfo] = useState<Exercise | null>(null);
   const template = templates[selected];
 
   const previews = useLiveQuery(async () => {
@@ -47,6 +50,12 @@ export function TodayStart({ date, planned, suggestion, templates, exercises, re
     );
   }, [db, template, exercises, settings.unit]);
 
+  /** Picking a day type plans it for today, so reopening the app keeps your choice. */
+  const choose = async (d: DayType) => {
+    setChoice(d);
+    if (!restLogged) await db.dayLogs.put({ date, dayType: d, status: "planned" });
+  };
+
   const start = async () => {
     setStarting(true);
     try {
@@ -56,12 +65,12 @@ export function TodayStart({ date, planned, suggestion, templates, exercises, re
     }
   };
 
+  const status = planned?.dayType === selected || choice === selected ? "Planned for today" : "Suggested";
   const reason =
-    selected === recommended
-      ? planned
-        ? "You planned this one."
-        : suggestion?.reason
-      : `Off-plan is fine. The planner will re-plan the rest of the week around ${DAY_LABEL[selected]}.`;
+    selected === suggested
+      ? (suggestion?.reason ?? "")
+      : `Off the suggested plan is fine. The rest of the week re-plans around ${DAY_LABEL[selected]}.`;
+  const dayExercises = (template?.slots ?? []).map((s) => exercises[s.exerciseId]).filter((e): e is Exercise => Boolean(e));
 
   return (
     <>
@@ -74,21 +83,13 @@ export function TodayStart({ date, planned, suggestion, templates, exercises, re
               type="button"
               role="radio"
               aria-checked={active}
-              onClick={() => setSelected(d)}
+              onClick={() => choose(d)}
               className={cn(
-                "relative h-11 shrink-0 rounded-full border px-4 text-base font-semibold transition-colors",
-                active
-                  ? "border-transparent bg-signal-soft text-signal"
-                  : "border-transparent bg-white/[0.07] text-fog-2 hover:bg-white/[0.1]",
+                "h-11 shrink-0 rounded-full px-[18px] text-base font-semibold transition-colors active:scale-[0.97]",
+                active ? "bg-signal text-signal-ink" : "bg-white/[0.07] text-fog-2 hover:bg-white/[0.1]",
               )}
             >
               {DAY_LABEL[d]}
-              {d === recommended && (
-                <span
-                  className={cn("absolute right-1.5 top-1.5 size-1.5 rounded-full", active ? "bg-signal" : "bg-fog")}
-                  aria-label="Suggested"
-                />
-              )}
             </button>
           );
         })}
@@ -99,30 +100,56 @@ export function TodayStart({ date, planned, suggestion, templates, exercises, re
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-        className="mt-6"
+        className="mt-5"
       >
-        <h2 className="readout text-[84px] font-bold uppercase leading-[0.8] tracking-tight md:text-[112px]">{DAY_LABEL[selected]}</h2>
-        {reason && <p className="mt-3 max-w-md text-base text-fog-2">{reason}</p>}
+        <div className="panel relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(70%_100%_at_30%_0%,rgb(58_134_255_/_0.16),transparent)]" />
+          <div className={cn("relative grid", selected !== "rest" && "sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]")}>
+            <div className="p-5 pb-2 sm:pb-5">
+              <p className="text-sm font-semibold text-signal">{status}</p>
+              <h2 className="readout mt-1 text-[88px] font-bold uppercase leading-[0.8] tracking-tight md:text-[112px]">
+                {DAY_LABEL[selected]}
+              </h2>
+              {reason && <p className="mt-3 max-w-sm text-base text-fog-2">{reason}</p>}
+              {selected !== "rest" && (
+                <p className="mt-3 text-sm text-fog">
+                  {dayExercises.length} exercises · {template?.slots.reduce((a, s) => a + s.sets, 0)} working sets
+                </p>
+              )}
+            </div>
+            {selected !== "rest" && (
+              <div>
+                <WorksFigure exercises={dayExercises} className="h-64 sm:h-80" />
+                <div className="pb-3">
+                  <MuscleLegend />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
-        <ul className="panel divide-steel mt-6">
+        <ul className="panel divide-steel mt-4">
           {template?.slots.map((slot, i) => {
             const p = previews?.[i];
             const ex = exercises[slot.exerciseId];
             const s = p?.suggestion;
             return (
-              <li key={slot.id} className="flex min-h-16 items-center gap-3 px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-base">{ex?.name ?? slot.exerciseId}</p>
-                  <p className="text-sm text-fog">
-                    {ex?.isConditioning
-                      ? "Recovery"
-                      : `${slot.sets} × ${slot.repMin === slot.repMax ? slot.repMin : `${slot.repMin}–${slot.repMax}`}${ex?.perSide ? " per side" : ""}`}
-                    {slot.note ? ` · ${slot.note}` : ""}
-                  </p>
-                </div>
-                {s?.weight != null && (
-                  <div className="text-right">
-                    <p
+              <li key={slot.id}>
+                <button
+                  type="button"
+                  onClick={() => ex && setInfo(ex)}
+                  className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-base">{ex?.name ?? slot.exerciseId}</span>
+                    <span className="block truncate text-sm text-fog">
+                      {ex?.isConditioning
+                        ? "Recovery"
+                        : `${slot.sets} × ${slot.repMin === slot.repMax ? slot.repMin : `${slot.repMin}–${slot.repMax}`}${ex?.perSide ? " per side" : ""} · ${ex ? ex.primary.map((m) => MUSCLE_META[m].label).join(", ") : ""}`}
+                    </span>
+                  </span>
+                  {s?.weight != null && (
+                    <span
                       className={cn(
                         "readout flex items-center justify-end gap-1 text-[22px] font-semibold",
                         s.action === "increase" && "text-signal",
@@ -131,14 +158,18 @@ export function TodayStart({ date, planned, suggestion, templates, exercises, re
                       {s.action === "increase" && <ArrowUp className="size-4" strokeWidth={2.5} />}
                       {formatNumber(s.weight)}
                       <span className="text-sm font-normal text-fog">{s.unit}</span>
-                    </p>
-                  </div>
-                )}
+                    </span>
+                  )}
+                  <ChevronRight className="size-5 shrink-0 text-fog/60" />
+                </button>
               </li>
             );
           })}
         </ul>
+        <p className="mt-2 px-4 text-xs text-fog">Tap an exercise to see the muscles it works.</p>
       </motion.section>
+
+      <ExerciseInfoSheet exercise={info} onClose={() => setInfo(null)} />
 
       <StickyAction>
         {selected === "rest" ? (

@@ -10,11 +10,14 @@ import { Field, NumberField, Segmented, Toggle } from "@/components/ui/controls"
 import { useToast } from "@/components/ui/toast";
 import { useLatestBodyweight, useToday } from "@/lib/db/hooks";
 import { resolveTargets, sumLogs } from "@/lib/db/nutrition";
+import { addWeeks, format } from "date-fns";
 import { addDays, today } from "@/lib/domain/dates";
 import {
   ACTIVITY_FACTOR,
   ACTIVITY_LABEL,
   computeTargets,
+  goalProgress,
+  NIGHTWING_MUSCLE_FOCUS,
   KCAL_PER_KG,
   phaseRate,
   PRESETS,
@@ -28,6 +31,7 @@ import {
   type Sex,
 } from "@/lib/domain/nutrition";
 import { convert, formatNumber, roundTo } from "@/lib/domain/units";
+import type { Muscle } from "@/lib/domain/types";
 import { cn } from "@/lib/cn";
 
 const DEFAULT_PROFILE: Profile = { sex: "male", age: 25, heightCm: 175, weightKg: 75, activity: "moderate" };
@@ -46,6 +50,8 @@ export default function GoalsPage() {
   const setProfile = (p: Partial<Profile>) => updateSettings(db, { profile: { ...profile, ...p }, goal });
   const setGoal = (g: Partial<GoalSettings>) => updateSettings(db, { goal: { ...goal, ...g }, profile });
   const rate = phaseRate(goal.phase, goal.rateKgPerWeek);
+  const progress = goalProgress(profile.weightKg, goal);
+  const eta = progress?.weeksLeft ? format(addWeeks(new Date(), progress.weeksLeft), "MMMM yyyy") : null;
 
   return (
     <Page
@@ -56,7 +62,7 @@ export default function GoalsPage() {
       back={{ href: "/fuel", label: "Fuel" }}
     >
       <SectionTitle className="mt-2">What you&apos;re going for</SectionTitle>
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2">
         {(Object.keys(PRESETS) as GoalPreset[]).map((k) => {
           const p = PRESETS[k];
           const active = goal.preset === k;
@@ -69,6 +75,8 @@ export default function GoalsPage() {
                   preset: k,
                   phase: p.defaultPhase,
                   rateKgPerWeek: Math.abs(roundTo((p.defaultRatePct / 100) * profile.weightKg, 0.05)),
+                  // A lean, athletic "sweet spot" for your height (BMI ≈ 22.5) unless you've set your own.
+                  targetWeightKg: goal.targetWeightKg ?? Math.round(22.5 * (profile.heightCm / 100) ** 2),
                 })
               }
               className={cn(
@@ -113,6 +121,28 @@ export default function GoalsPage() {
               step={unit === "kg" ? 0.05 : 0.1}
               max={unit === "kg" ? 1.5 : 3}
               onChange={(v) => v !== null && setGoal({ rateKgPerWeek: convert(v, unit, "kg") })}
+            />
+          </Field>
+        )}
+        {(goal.phase === "cut" || goal.phase === "bulk") && (
+          <Field
+            label={`Target weight (${unit})`}
+            hint={
+              progress
+                ? progress.reached
+                  ? "You're there. Switch the phase to Maintain to hold it."
+                  : `${formatNumber(roundTo(convert(Math.abs(progress.remainingKg), "kg", unit), 0.1))} ${unit} to go · about ${progress.weeksLeft} weeks${
+                      eta ? ` (${eta})` : ""
+                    } at this rate. Then Alfred switches you to maintenance.`
+                : "Where the bulk or cut stops and maintenance starts."
+            }
+          >
+            <NumberField
+              label="Target weight"
+              value={goal.targetWeightKg ? roundTo(convert(goal.targetWeightKg, "kg", unit), 0.5) : null}
+              step={unit === "kg" ? 0.5 : 1}
+              max={unit === "kg" ? 200 : 440}
+              onChange={(v) => setGoal({ targetWeightKg: v === null ? undefined : convert(v, unit, "kg") })}
             />
           </Field>
         )}
@@ -230,6 +260,7 @@ export default function GoalsPage() {
       </div>
 
       <CheckInCard />
+      {goal.preset === "nightwing" && <NightwingFocus />}
       <ManualOverride current={settings.macroOverride} computed={breakdown.targets} />
     </Page>
   );
@@ -263,6 +294,7 @@ function CheckInCard() {
   if (!settings.goal || !settings.profile || !data) return null;
   const { targets } = resolveTargets(settings, bw);
   const ci = weeklyCheckIn({
+    goal: settings.goal,
     targetRate: phaseRate(settings.goal.phase, settings.goal.rateKgPerWeek),
     targetKcal: targets.kcal,
     weighIns: data.weighIns,
@@ -299,6 +331,18 @@ function CheckInCard() {
             </p>
           </div>
         </div>
+        {ci.status === "goal-reached" && (
+          <Button
+            variant="primary"
+            className="mt-4 w-full"
+            onClick={async () => {
+              await updateSettings(db, { goal: { ...settings.goal!, phase: "maintain" }, kcalAdjustment: 0 });
+              toast({ message: "Switched to maintenance. Targets updated." });
+            }}
+          >
+            Switch to maintenance
+          </Button>
+        )}
         {(ci.status === "too-fast" || ci.status === "too-slow") && (
           <Button
             variant="primary"
@@ -363,6 +407,44 @@ function ManualOverride({ current, computed }: { current: MacroTargets | null; c
             </Field>
           </div>
         )}
+      </div>
+    </>
+  );
+}
+
+function NightwingFocus() {
+  const { db } = useApp();
+  const toast = useToast();
+  return (
+    <>
+      <SectionTitle>Training for the Nightwing look</SectionTitle>
+      <div className="panel p-4">
+        <ul className="space-y-2 text-sm text-fog-2">
+          <li>
+            <span className="text-bone">V-taper first.</span> Wide lats and capped side delts make the waist look narrow; give them the most
+            weekly sets.
+          </li>
+          <li>
+            <span className="text-bone">Strong for your weight.</span> Pull-ups, dips and hanging leg raises carry over to the acrobatic
+            look better than chasing max bench.
+          </li>
+          <li>
+            <span className="text-bone">Athletic legs.</span> Keep glutes, hamstrings and calves at full volume; split squats and RDLs over
+            heavy leg press.
+          </li>
+        </ul>
+        <Button
+          variant="tinted"
+          className="mt-4 w-full"
+          onClick={async () => {
+            await db.muscleTargets.bulkPut(
+              Object.entries(NIGHTWING_MUSCLE_FOCUS).map(([muscle, sets]) => ({ muscle: muscle as Muscle, sets })),
+            );
+            toast({ message: "Weekly set targets updated for the V-taper focus." });
+          }}
+        >
+          Apply V-taper set targets
+        </Button>
       </div>
     </>
   );

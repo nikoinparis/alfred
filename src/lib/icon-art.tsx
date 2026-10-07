@@ -9,12 +9,11 @@ export function IconArt({ size }: { size: number }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "radial-gradient(circle at 50% 30%, #1e2530 0%, #090b0f 70%)",
+        background: "radial-gradient(circle at 50% 30%, #182235 0%, #050608 72%)",
       }}
     >
       <svg width={emblem} height={emblem} viewBox="0 0 32 32">
-        <path d="M16 3 4 9.5v7.2C4 23 9.2 27.6 16 29c6.8-1.4 12-6 12-12.3V9.5L16 3Z" fill="#171c24" stroke="#374254" strokeWidth="0.8" />
-        <path d="M9 12.5 16 22l7-9.5-3.6 1.6L16 9.5l-3.4 4.6L9 12.5Z" fill="#e2b04a" />
+        <path d="M2 9.5 16 22.5 30 9.5 26.5 9.2 16 17.6 5.5 9.2Z" fill="#3a86ff" />
       </svg>
     </div>
   );

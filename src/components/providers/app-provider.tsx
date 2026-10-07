@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { AlfredDB, DEFAULT_SETTINGS, type Settings } from "@/lib/db/schema";
-import { seedBase, seedDemo } from "@/lib/db/seed";
+import { ensureOwnerDefaults, seedBase, seedDemo } from "@/lib/db/seed";
 import { today } from "@/lib/domain/dates";
 import { DB_NAME, readStoredMode, storeMode, type AppMode } from "@/lib/mode";
 
@@ -53,6 +53,7 @@ async function openDbUncached(mode: AppMode, forceReseed: boolean): Promise<Alfr
   }
   const db = new AlfredDB(DB_NAME.owner);
   await seedBase(db);
+  await ensureOwnerDefaults(db, today());
   try {
     await navigator.storage?.persist?.();
   } catch {}

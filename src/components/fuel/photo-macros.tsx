@@ -28,11 +28,13 @@ export interface MealStart {
   photo?: Photo;
   note?: string;
   auto?: boolean;
+  /** Macros pasted from a Claude chat: open straight on the review step. */
+  pasted?: MealEstimate;
 }
 type Stage =
   | { kind: "compose" }
   | { kind: "analyzing" }
-  | { kind: "draft"; items: Item[]; low: number; high: number; confidence: number; notes: string; demo: boolean }
+  | { kind: "draft"; items: Item[]; low: number; high: number; confidence: number; notes: string; demo: boolean; pasted?: boolean }
   | { kind: "error"; message: string; locked?: boolean };
 
 const EXAMPLES = [
@@ -44,7 +46,9 @@ const EXAMPLES = [
 export function PhotoMacrosSheet({ open, onClose, date, start }: { open: boolean; onClose: () => void; date: string; start?: MealStart }) {
   const { db, mode, ownerVerified } = useApp();
   const toast = useToast();
-  const [stage, setStage] = useState<Stage>(start?.auto ? { kind: "analyzing" } : { kind: "compose" });
+  const [stage, setStage] = useState<Stage>(() =>
+    start?.pasted ? { ...toDraft(start.pasted, false), pasted: true } : start?.auto ? { kind: "analyzing" } : { kind: "compose" },
+  );
   const [photo, setPhoto] = useState<Photo | null>(start?.photo ?? null);
   const [note, setNote] = useState(start?.note ?? "");
   const [refine, setRefine] = useState("");
@@ -142,8 +146,12 @@ export function PhotoMacrosSheet({ open, onClose, date, start }: { open: boolean
       carbs: Math.round(i.carbs * 10) / 10,
       fat: Math.round(i.fat * 10) / 10,
       source: photo ? "photo" : "ai",
-      confidence: i.confidence,
-      kcalRange: [Math.round((s.low * i.kcal) / total), Math.round((s.high * i.kcal) / total)],
+      ...(s.pasted
+        ? {}
+        : {
+            confidence: i.confidence,
+            kcalRange: [Math.round((s.low * i.kcal) / total), Math.round((s.high * i.kcal) / total)],
+          }),
       foodId: foods[n]?.id,
     }));
     await db.transaction("rw", [db.foodLogs, db.foods], async () => {
@@ -166,7 +174,7 @@ export function PhotoMacrosSheet({ open, onClose, date, start }: { open: boolean
       onClose={close}
       size="lg"
       closeLabel="Cancel"
-      title={photo ? "Snap a meal" : "Describe a meal"}
+      title={start?.pasted ? "Check pasted macros" : photo ? "Snap a meal" : "Describe a meal"}
       footer={
         stage.kind === "compose" ? (
           <Button variant="primary" size="lg" className="w-full" disabled={!canEstimate} onClick={() => estimate(note)}>
@@ -423,19 +431,25 @@ function Draft({
         {preview && <img src={preview} alt="Your meal" className="size-24 shrink-0 rounded-[14px] object-cover" />}
         <div className="min-w-0">
           <p className="readout text-[44px] font-semibold">{Math.round(total.kcal)}</p>
-          <p className="text-sm text-fog">
-            kcal · likely {stage.low}–{stage.high} (±{pct}%)
-          </p>
-          <div className="mt-1.5">
-            <Confidence value={stage.confidence} />
-          </div>
+          {stage.pasted ? (
+            <p className="text-sm text-fog">kcal from your Claude chat</p>
+          ) : (
+            <>
+              <p className="text-sm text-fog">
+                kcal · likely {stage.low}–{stage.high} (±{pct}%)
+              </p>
+              <div className="mt-1.5">
+                <Confidence value={stage.confidence} />
+              </div>
+            </>
+          )}
         </div>
       </div>
       {stage.demo && <p className="text-xs text-ice">Sample estimate. Real photos and descriptions go to Claude once AI is unlocked.</p>}
       {stage.notes && <p className="text-sm text-fog-2">{stage.notes}</p>}
       <MacroLine kcal={total.kcal} p={total.p} c={total.c} f={total.f} />
 
-      <div className="flex gap-2">
+      <div className={cn("flex gap-2", stage.pasted && "hidden")}>
         <TextInput
           value={refine}
           onChange={(e) => onRefineChange(e.target.value)}
@@ -477,13 +491,17 @@ function Draft({
               </div>
               <p className="mt-1.5 flex items-center gap-2 px-1 text-xs text-fog">
                 {i.portion}
-                <span
-                  className={cn(
-                    "size-1.5 rounded-full",
-                    i.confidence >= 0.75 ? "bg-verdigris" : i.confidence >= 0.5 ? "bg-ochre" : "bg-crimson",
-                  )}
-                />
-                {Math.round(i.confidence * 100)}% sure
+                {!stage.pasted && (
+                  <>
+                    <span
+                      className={cn(
+                        "size-1.5 rounded-full",
+                        i.confidence >= 0.75 ? "bg-verdigris" : i.confidence >= 0.5 ? "bg-ochre" : "bg-crimson",
+                      )}
+                    />
+                    {Math.round(i.confidence * 100)}% sure
+                  </>
+                )}
               </p>
               <div className="mt-2 grid grid-cols-4 gap-1.5">
                 {(

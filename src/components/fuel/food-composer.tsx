@@ -8,6 +8,8 @@ import { useToast } from "@/components/ui/toast";
 import { logFood } from "@/lib/db/nutrition";
 import type { Food, FoodLog } from "@/lib/db/schema";
 import { matchSavedFoods } from "@/lib/domain/food-match";
+import { MACRO_PROMPT, parseMacroList } from "@/lib/domain/macro-import";
+import type { MealEstimate } from "@/lib/vision-schema";
 import { compressImage } from "@/lib/image";
 import { cn } from "@/lib/cn";
 import type { Photo } from "./photo-macros";
@@ -28,11 +30,13 @@ export function FoodComposer({
   onDescribe,
   onPhoto,
   onBrowse,
+  onPasted,
 }: {
   date: string;
   onDescribe: (text: string) => void;
   onPhoto: (photo: Photo) => void;
   onBrowse: () => void;
+  onPasted: (estimate: MealEstimate) => void;
 }) {
   const { db } = useApp();
   const toast = useToast();
@@ -55,10 +59,21 @@ export function FoodComposer({
     });
   };
 
+  const copyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(MACRO_PROMPT);
+      toast({ message: "Prompt copied. Paste it into Claude, add what you ate, then paste Claude's answer here.", duration: 6000 });
+    } catch {
+      toast({ message: "Couldn't copy. Use the /macros command in Claude Code instead.", tone: "danger" });
+    }
+  };
+
   const submit = () => {
     if (!ready) return;
     const said = text.trim();
     setText("");
+    const pasted = parseMacroList(said);
+    if (pasted) return onPasted(pasted);
     const matched = matchSavedFoods(said, foods ?? []);
     if (matched) void quickLog(matched);
     else onDescribe(said);
@@ -148,8 +163,11 @@ export function FoodComposer({
         ))}
       </div>
       <p className="mt-2 px-1 text-xs text-fog">
-        Saved foods (&ldquo;2 kellogs&rdquo;) log instantly with no AI. Anything else, Claude estimates at Indonesian portions. Short on
-        time? List the whole day tonight in one go.
+        Saved foods (&ldquo;2 kellogs&rdquo;) log instantly with no AI. Anything else, the AI estimates at Indonesian portions. Or{" "}
+        <button type="button" onClick={copyPrompt} className="font-semibold text-signal">
+          ask Claude in a chat
+        </button>{" "}
+        and paste its answer here.
       </p>
     </section>
   );

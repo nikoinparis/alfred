@@ -84,6 +84,7 @@ export default function FuelPage() {
           onDescribe={(text) => openMeal({ note: text, auto: true })}
           onPhoto={(p) => openMeal({ photo: p })}
           onBrowse={() => setAdding(true)}
+          onPasted={(pasted) => openMeal({ pasted })}
         />
       </div>
       <div className="mt-3">

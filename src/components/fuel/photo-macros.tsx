@@ -243,7 +243,7 @@ export function PhotoMacrosSheet({ open, onClose, date, start }: { open: boolean
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   rows={3}
-                  maxLength={600}
+                  maxLength={1500}
                   autoFocus
                   placeholder="Brand, amount, how it was cooked"
                   className="w-full resize-none rounded-[12px] bg-white/[0.07] px-3.5 py-3 text-base outline-none ring-signal/60 placeholder:text-fog/70 focus:bg-white/[0.1] focus:ring-1"

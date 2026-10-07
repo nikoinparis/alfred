@@ -31,7 +31,7 @@ export function configuredProvider(): VisionProvider | null {
 }
 
 function userText(input: VisionInput) {
-  const note = input.note?.trim().slice(0, 600);
+  const note = input.note?.trim().slice(0, 1500);
   if (!input.image) return `No photo. Estimate from my description: ${note}`;
   return note ? `Estimate the meal in this photo. What it is, from me: ${note}` : "Estimate the meal in this photo.";
 }
@@ -47,7 +47,7 @@ async function estimateWithClaude(input: VisionInput): Promise<{ estimate: MealE
   try {
     const response = await client.beta.messages.parse({
       model,
-      max_tokens: 4000,
+      max_tokens: 6000,
       system: VISION_PROMPT,
       messages: [
         {

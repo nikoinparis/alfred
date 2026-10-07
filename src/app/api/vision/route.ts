@@ -13,7 +13,7 @@ const Body = z
   .object({
     image: z.string().min(100).max(MAX_BASE64).optional(),
     mediaType: z.enum(["image/jpeg", "image/png", "image/webp"]).optional(),
-    note: z.string().max(600).optional(),
+    note: z.string().max(1500).optional(),
   })
   .refine((b) => (b.image && b.mediaType) || b.note?.trim(), "Send a photo, a description, or both.");
 

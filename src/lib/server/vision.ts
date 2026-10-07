@@ -72,7 +72,10 @@ async function estimateWithClaude(input: VisionInput): Promise<{ estimate: MealE
     if (e instanceof VisionError) throw e;
     if (e instanceof Anthropic.RateLimitError) throw new VisionError("Anthropic rate limit hit. Wait a minute and retry.", 429);
     if (e instanceof Anthropic.AuthenticationError) throw new VisionError("ANTHROPIC_API_KEY is invalid.", 500);
-    if (e instanceof Anthropic.BadRequestError) throw new VisionError(`Anthropic rejected the request: ${e.message}`, 400);
+    if (e instanceof Anthropic.BadRequestError && /credit balance/i.test(e.message)) {
+      throw new VisionError("AI credits have run out. Log from My foods for now, or top up at console.anthropic.com → Billing.", 402);
+    }
+    if (e instanceof Anthropic.BadRequestError) throw new VisionError("Anthropic rejected the request. Try a shorter description.", 400);
     if (e instanceof Anthropic.APIConnectionError) throw new VisionError("Couldn't reach Anthropic. Try again.", 503);
     if (e instanceof Anthropic.APIError) throw new VisionError(`Anthropic error (${e.status}).`, 502);
     throw e;
@@ -119,6 +122,19 @@ async function estimateWithGemini(input: VisionInput): Promise<{ estimate: MealE
 export async function estimateMeal(input: VisionInput): Promise<{ estimate: MealEstimate; provider: VisionProvider; model: string }> {
   const provider = configuredProvider();
   if (!provider) throw new VisionError("No vision API key configured on the server.", 503);
-  const out = provider === "anthropic" ? await estimateWithClaude(input) : await estimateWithGemini(input);
-  return { ...out, provider, estimate: sanitize(out.estimate) };
+  if (provider === "gemini") {
+    const out = await estimateWithGemini(input);
+    return { ...out, provider, estimate: sanitize(out.estimate) };
+  }
+  try {
+    const out = await estimateWithClaude(input);
+    return { ...out, provider, estimate: sanitize(out.estimate) };
+  } catch (e) {
+    // Out of Anthropic credits or rate-limited: use Gemini's free tier when a key is set.
+    if (e instanceof VisionError && (e.status === 402 || e.status === 429) && process.env.GEMINI_API_KEY) {
+      const out = await estimateWithGemini(input);
+      return { ...out, provider: "gemini", estimate: sanitize(out.estimate) };
+    }
+    throw e;
+  }
 }
